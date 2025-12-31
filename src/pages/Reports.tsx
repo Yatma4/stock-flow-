@@ -2,13 +2,6 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   FileText,
   Download,
   Calendar,
@@ -16,8 +9,10 @@ import {
   ShoppingCart,
   DollarSign,
   BarChart3,
+  Loader2,
 } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 
 const reportTypes = [
   {
@@ -63,11 +58,26 @@ const periods = [
 export default function Reports() {
   const [selectedReport, setSelectedReport] = useState<string | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
+  const [isGenerating, setIsGenerating] = useState(false);
 
-  const handleGenerateReport = () => {
-    if (!selectedReport) return;
-    // In a real app, this would generate and download a PDF
-    alert(`Génération du rapport ${selectedReport} pour la période ${selectedPeriod}`);
+  const handleGenerateReport = async () => {
+    if (!selectedReport) {
+      toast.error('Veuillez sélectionner un type de rapport');
+      return;
+    }
+
+    setIsGenerating(true);
+    
+    // Simulate PDF generation
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    const reportName = reportTypes.find(r => r.id === selectedReport)?.name;
+    const periodName = periods.find(p => p.id === selectedPeriod)?.name;
+    
+    setIsGenerating(false);
+    toast.success(`Rapport "${reportName}" (${periodName}) généré avec succès !`, {
+      description: 'Le téléchargement va commencer...',
+    });
   };
 
   return (
@@ -170,12 +180,21 @@ export default function Reports() {
             <Button
               variant="gradient"
               size="lg"
-              disabled={!selectedReport}
+              disabled={!selectedReport || isGenerating}
               onClick={handleGenerateReport}
               className="w-full sm:w-auto"
             >
-              <Download className="mr-2 h-4 w-4" />
-              Télécharger en PDF
+              {isGenerating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Génération...
+                </>
+              ) : (
+                <>
+                  <Download className="mr-2 h-4 w-4" />
+                  Télécharger en PDF
+                </>
+              )}
             </Button>
           </div>
         </Card>
