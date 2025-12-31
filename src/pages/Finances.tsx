@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -13,7 +13,22 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { financialEntries } from '@/data/mockData';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { financialEntries as initialEntries } from '@/data/mockData';
 import {
   Plus,
   Search,
@@ -26,20 +41,33 @@ import {
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import { FinancialEntry } from '@/types';
+
+const incomeCategories = ['Ventes', 'Services', 'Investissements', 'Autres revenus'];
+const expenseCategories = ['Achats stock', 'Salaires', 'Loyer', 'Électricité', 'Marketing', 'Fournitures', 'Autres dépenses'];
 
 export default function Finances() {
+  const [entries, setEntries] = useState<FinancialEntry[]>(initialEntries);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    type: 'income' as 'income' | 'expense',
+    category: '',
+    description: '',
+    amount: 0,
+  });
 
-  const totalIncome = financialEntries
+  const totalIncome = entries
     .filter((e) => e.type === 'income')
     .reduce((sum, e) => sum + e.amount, 0);
-  const totalExpenses = financialEntries
+  const totalExpenses = entries
     .filter((e) => e.type === 'expense')
     .reduce((sum, e) => sum + e.amount, 0);
   const balance = totalIncome - totalExpenses;
 
-  const filteredEntries = financialEntries.filter((entry) => {
+  const filteredEntries = entries.filter((entry) => {
     const matchesSearch =
       entry.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       entry.category.toLowerCase().includes(searchQuery.toLowerCase());
@@ -49,6 +77,28 @@ export default function Finances() {
       (activeTab === 'expense' && entry.type === 'expense');
     return matchesSearch && matchesTab;
   });
+
+  const handleAdd = () => {
+    setFormData({ type: 'income', category: '', description: '', amount: 0 });
+    setIsAddOpen(true);
+  };
+
+  const submitAdd = () => {
+    if (!formData.category || !formData.description || formData.amount <= 0) {
+      toast.error('Veuillez remplir tous les champs');
+      return;
+    }
+
+    const newEntry: FinancialEntry = {
+      id: Date.now().toString(),
+      ...formData,
+      date: new Date(),
+    };
+
+    setEntries([newEntry, ...entries]);
+    setIsAddOpen(false);
+    toast.success(`${formData.type === 'income' ? 'Revenu' : 'Dépense'} ajouté(e) avec succès`);
+  };
 
   return (
     <MainLayout
@@ -142,7 +192,7 @@ export default function Finances() {
                 className="pl-9"
               />
             </div>
-            <Button variant="gradient">
+            <Button variant="gradient" onClick={handleAdd}>
               <Plus className="mr-2 h-4 w-4" />
               Ajouter
             </Button>
@@ -179,17 +229,16 @@ export default function Finances() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      variant="secondary"
+                    <span
                       className={cn(
-                        'border',
+                        'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border',
                         entry.type === 'income'
                           ? 'bg-success/10 text-success border-success/30'
                           : 'bg-destructive/10 text-destructive border-destructive/30'
                       )}
                     >
                       {entry.category}
-                    </Badge>
+                    </span>
                   </TableCell>
                   <TableCell className="font-medium text-foreground">
                     {entry.description}
@@ -214,6 +263,82 @@ export default function Finances() {
           </Table>
         </div>
       </div>
+
+      {/* Add Entry Dialog */}
+      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ajouter une entrée</DialogTitle>
+            <DialogDescription>
+              Enregistrez un nouveau revenu ou une nouvelle dépense.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Type</Label>
+              <Select
+                value={formData.type}
+                onValueChange={(value: 'income' | 'expense') => 
+                  setFormData({ ...formData, type: value, category: '' })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="income">Revenu</SelectItem>
+                  <SelectItem value="expense">Dépense</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Catégorie</Label>
+              <Select
+                value={formData.category}
+                onValueChange={(value) => setFormData({ ...formData, category: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner une catégorie" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(formData.type === 'income' ? incomeCategories : expenseCategories).map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Input
+                id="description"
+                placeholder="Ex: Vente de produits électroniques"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="amount">Montant (€)</Label>
+              <Input
+                id="amount"
+                type="number"
+                min="0"
+                value={formData.amount}
+                onChange={(e) => setFormData({ ...formData, amount: Number(e.target.value) })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddOpen(false)}>
+              Annuler
+            </Button>
+            <Button variant="gradient" onClick={submitAdd}>
+              Ajouter
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }
