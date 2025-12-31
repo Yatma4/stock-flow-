@@ -1,5 +1,6 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { expensesByCategory } from '@/data/mockData';
+import { motion } from 'framer-motion';
 
 const COLORS = [
   'hsl(173, 58%, 39%)',
@@ -13,14 +14,24 @@ export function ExpensesChart() {
   const total = expensesByCategory.reduce((sum, e) => sum + e.amount, 0);
 
   return (
-    <div className="rounded-xl border bg-card p-6 shadow-card">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay: 0.5 }}
+      className="rounded-xl border bg-card p-6 shadow-card hover:shadow-card-hover transition-shadow duration-300"
+    >
       <div className="mb-6">
         <h3 className="text-lg font-semibold text-foreground">Répartition des dépenses</h3>
         <p className="text-sm text-muted-foreground">Par catégorie ce mois</p>
       </div>
 
       <div className="flex items-center gap-6">
-        <div className="h-[200px] w-[200px]">
+        <motion.div 
+          className="h-[200px] w-[200px]"
+          initial={{ rotate: -180, opacity: 0 }}
+          animate={{ rotate: 0, opacity: 1 }}
+          transition={{ duration: 1, delay: 0.6, ease: "easeOut" }}
+        >
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -31,6 +42,8 @@ export function ExpensesChart() {
                 outerRadius={90}
                 paddingAngle={3}
                 dataKey="amount"
+                animationDuration={1200}
+                animationEasing="ease-out"
               >
                 {expensesByCategory.map((entry, index) => (
                   <Cell
@@ -51,15 +64,23 @@ export function ExpensesChart() {
               />
             </PieChart>
           </ResponsiveContainer>
-        </div>
+        </motion.div>
 
         <div className="flex-1 space-y-3">
           {expensesByCategory.map((expense, index) => (
-            <div key={expense.category} className="flex items-center justify-between">
+            <motion.div 
+              key={expense.category} 
+              className="flex items-center justify-between p-2 rounded-lg hover:bg-secondary/50 transition-colors cursor-pointer"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.7 + index * 0.1 }}
+              whileHover={{ x: 4 }}
+            >
               <div className="flex items-center gap-2">
-                <div
+                <motion.div
                   className="h-3 w-3 rounded-full"
                   style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                  whileHover={{ scale: 1.3 }}
                 />
                 <span className="text-sm text-foreground">{expense.category}</span>
               </div>
@@ -69,15 +90,20 @@ export function ExpensesChart() {
                 </p>
                 <p className="text-xs text-muted-foreground">{expense.percentage}%</p>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>
 
-      <div className="mt-6 flex items-center justify-between rounded-lg bg-secondary/50 p-4">
+      <motion.div 
+        className="mt-6 flex items-center justify-between rounded-lg bg-secondary/50 p-4"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 1.2 }}
+      >
         <span className="text-sm font-medium text-muted-foreground">Total des dépenses</span>
         <span className="text-lg font-bold text-foreground">{total.toLocaleString()} €</span>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

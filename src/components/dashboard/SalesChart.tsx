@@ -8,18 +8,54 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { salesByMonth } from '@/data/mockData';
+import { motion } from 'framer-motion';
+import { TrendingUp } from 'lucide-react';
 
 export function SalesChart() {
   return (
-    <div className="rounded-xl border bg-card p-6 shadow-card">
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold text-foreground">Évolution des ventes</h3>
-        <p className="text-sm text-muted-foreground">
-          Ventes et profits des 6 derniers mois
-        </p>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay: 0.4 }}
+      className="rounded-xl border bg-card p-6 shadow-card hover:shadow-card-hover transition-shadow duration-300"
+    >
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-foreground">Évolution des ventes</h3>
+            <motion.div
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              <TrendingUp className="h-4 w-4 text-success" />
+            </motion.div>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Ventes et profits des 6 derniers mois
+          </p>
+        </div>
+        <motion.div 
+          className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-success/10 text-success text-sm font-medium"
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.8 }}
+        >
+          <motion.span
+            animate={{ opacity: [1, 0.5, 1] }}
+            transition={{ duration: 1.5, repeat: Infinity }}
+          >
+            ●
+          </motion.span>
+          Live
+        </motion.div>
       </div>
 
-      <div className="h-[300px]">
+      <motion.div 
+        className="h-[300px]"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.6, duration: 0.8 }}
+      >
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={salesByMonth}>
             <defs>
@@ -63,6 +99,8 @@ export function SalesChart() {
               strokeWidth={2}
               fillOpacity={1}
               fill="url(#colorVentes)"
+              animationDuration={1500}
+              animationEasing="ease-out"
             />
             <Area
               type="monotone"
@@ -72,12 +110,19 @@ export function SalesChart() {
               strokeWidth={2}
               fillOpacity={1}
               fill="url(#colorProfit)"
+              animationDuration={1500}
+              animationEasing="ease-out"
             />
           </AreaChart>
         </ResponsiveContainer>
-      </div>
+      </motion.div>
 
-      <div className="mt-4 flex items-center justify-center gap-6">
+      <motion.div 
+        className="mt-4 flex items-center justify-center gap-6"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1 }}
+      >
         <div className="flex items-center gap-2">
           <div className="h-3 w-3 rounded-full bg-primary" />
           <span className="text-sm text-muted-foreground">Ventes</span>
@@ -86,7 +131,7 @@ export function SalesChart() {
           <div className="h-3 w-3 rounded-full bg-success" />
           <span className="text-sm text-muted-foreground">Profit</span>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
