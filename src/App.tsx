@@ -28,19 +28,37 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, currentUser } = useAuth();
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  // Redirect employees to sales page - they only have access to sales
+  if (currentUser?.role !== 'admin') {
+    return <Navigate to="/sales" replace />;
+  }
+  
+  return <>{children}</>;
+}
+
 function AppRoutes() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, currentUser } = useAuth();
+  
+  // Determine the default route based on user role
+  const defaultRoute = currentUser?.role === 'admin' ? <Index /> : <Navigate to="/sales" replace />;
   
   return (
     <Routes>
       <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} />
-      <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-      <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
+      <Route path="/" element={<ProtectedRoute>{defaultRoute}</ProtectedRoute>} />
+      <Route path="/products" element={<AdminRoute><Products /></AdminRoute>} />
       <Route path="/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
-      <Route path="/finances" element={<ProtectedRoute><Finances /></ProtectedRoute>} />
-      <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-      <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
-      <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+      <Route path="/finances" element={<AdminRoute><Finances /></AdminRoute>} />
+      <Route path="/reports" element={<AdminRoute><Reports /></AdminRoute>} />
+      <Route path="/users" element={<AdminRoute><Users /></AdminRoute>} />
+      <Route path="/settings" element={<AdminRoute><Settings /></AdminRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
