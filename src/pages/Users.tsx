@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import {
   Table,
@@ -28,95 +27,141 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Edit, Trash2, Shield, User } from 'lucide-react';
+import { Plus, Edit, Trash2, Shield, User, Key } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-
-interface UserData {
-  id: string;
-  name: string;
-  email: string;
-  role: 'admin' | 'employee';
-  status: 'active' | 'inactive';
-}
-
-const initialUsers: UserData[] = [
-  { id: '1', name: 'Jean Dupont', email: 'jean.dupont@example.com', role: 'admin', status: 'active' },
-  { id: '2', name: 'Marie Martin', email: 'marie.martin@example.com', role: 'employee', status: 'active' },
-  { id: '3', name: 'Pierre Bernard', email: 'pierre.bernard@example.com', role: 'employee', status: 'active' },
-  { id: '4', name: 'Sophie Petit', email: 'sophie.petit@example.com', role: 'employee', status: 'inactive' },
-];
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Users() {
-  const [users, setUsers] = useState<UserData[]>(initialUsers);
+  const { users, addUser, updateUser, deleteUser, updateUserCode, getUserCode, currentUser } = useAuth();
+  
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
+  const [isChangeCodeOpen, setIsChangeCodeOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     role: 'employee' as 'admin' | 'employee',
-    status: 'active' as 'active' | 'inactive',
+    code: '',
   });
+  const [newCode, setNewCode] = useState('');
+  const [confirmCode, setConfirmCode] = useState('');
+
+  const selectedUser = users.find(u => u.id === selectedUserId);
 
   const handleAdd = () => {
-    setFormData({ name: '', email: '', role: 'employee', status: 'active' });
+    setFormData({ name: '', email: '', role: 'employee', code: '' });
     setIsAddOpen(true);
   };
 
-  const handleEdit = (user: UserData) => {
-    setSelectedUser(user);
-    setFormData({
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      status: user.status,
-    });
-    setIsEditOpen(true);
+  const handleEdit = (userId: string) => {
+    const user = users.find(u => u.id === userId);
+    if (user) {
+      setSelectedUserId(userId);
+      setFormData({
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        code: '',
+      });
+      setIsEditOpen(true);
+    }
   };
 
-  const handleDelete = (user: UserData) => {
-    setSelectedUser(user);
+  const handleDelete = (userId: string) => {
+    setSelectedUserId(userId);
     setIsDeleteOpen(true);
   };
 
-  const handleRowClick = (user: UserData) => {
-    handleEdit(user);
+  const handleChangeCode = (userId: string) => {
+    setSelectedUserId(userId);
+    setNewCode('');
+    setConfirmCode('');
+    setIsChangeCodeOpen(true);
   };
 
   const submitAdd = () => {
     if (!formData.name || !formData.email) {
-      toast.error('Veuillez remplir tous les champs');
+      toast.error('Veuillez remplir le nom et l\'email');
       return;
     }
-    const newUser: UserData = {
+    if (!formData.code || formData.code.length < 4) {
+      toast.error('Le code d\'accès doit contenir au moins 4 caractères');
+      return;
+    }
+    
+    // Check if name already exists
+    if (users.some(u => u.name.toLowerCase() === formData.name.toLowerCase())) {
+      toast.error('Un utilisateur avec ce nom existe déjà');
+      return;
+    }
+    
+    const newUser = {
       id: Date.now().toString(),
-      ...formData,
+      name: formData.name,
+      email: formData.email,
+      role: formData.role,
     };
-    setUsers([...users, newUser]);
+    
+    addUser(newUser, formData.code);
     setIsAddOpen(false);
     toast.success(`Utilisateur "${formData.name}" ajouté avec succès`);
   };
 
   const submitEdit = () => {
-    if (!selectedUser) return;
+    if (!selectedUserId) return;
     if (!formData.name || !formData.email) {
       toast.error('Veuillez remplir tous les champs');
       return;
     }
-    setUsers(users.map(u => 
-      u.id === selectedUser.id ? { ...u, ...formData } : u
-    ));
+    
+    // Check if name already exists (exclude current user)
+    if (users.some(u => u.id !== selectedUserId && u.name.toLowerCase() === formData.name.toLowerCase())) {
+      toast.error('Un utilisateur avec ce nom existe déjà');
+      return;
+    }
+    
+    updateUser(selectedUserId, {
+      name: formData.name,
+      email: formData.email,
+      role: formData.role,
+    });
     setIsEditOpen(false);
     toast.success(`Utilisateur "${formData.name}" modifié avec succès`);
   };
 
   const confirmDelete = () => {
-    if (!selectedUser) return;
-    setUsers(users.filter(u => u.id !== selectedUser.id));
+    if (!selectedUserId) return;
+    
+    // Prevent deleting yourself
+    if (selectedUserId === currentUser?.id) {
+      toast.error('Vous ne pouvez pas supprimer votre propre compte');
+      return;
+    }
+    
+    deleteUser(selectedUserId);
     setIsDeleteOpen(false);
-    toast.success(`Utilisateur "${selectedUser.name}" supprimé`);
+    toast.success(`Utilisateur supprimé`);
+  };
+
+  const submitChangeCode = () => {
+    if (!selectedUserId) return;
+    
+    if (!newCode || newCode.length < 4) {
+      toast.error('Le nouveau code doit contenir au moins 4 caractères');
+      return;
+    }
+    
+    if (newCode !== confirmCode) {
+      toast.error('Les codes ne correspondent pas');
+      return;
+    }
+    
+    updateUserCode(selectedUserId, newCode);
+    setIsChangeCodeOpen(false);
+    toast.success('Code d\'accès modifié avec succès');
   };
 
   return (
@@ -171,7 +216,6 @@ export default function Users() {
                 <TableHead className="font-semibold">Utilisateur</TableHead>
                 <TableHead className="font-semibold">Email</TableHead>
                 <TableHead className="font-semibold">Rôle</TableHead>
-                <TableHead className="font-semibold">Statut</TableHead>
                 <TableHead className="font-semibold text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -179,15 +223,19 @@ export default function Users() {
               {users.map((user) => (
                 <TableRow 
                   key={user.id} 
-                  className="hover:bg-secondary/30 transition-colors cursor-pointer"
-                  onClick={() => handleRowClick(user)}
+                  className="hover:bg-secondary/30 transition-colors"
                 >
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-medium">
-                        {user.name.charAt(0)}
+                        {user.name.charAt(0).toUpperCase()}
                       </div>
-                      <span className="font-medium text-foreground">{user.name}</span>
+                      <div>
+                        <span className="font-medium text-foreground">{user.name}</span>
+                        {user.id === currentUser?.id && (
+                          <span className="ml-2 text-xs text-muted-foreground">(vous)</span>
+                        )}
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{user.email}</TableCell>
@@ -208,28 +256,23 @@ export default function Users() {
                       {user.role === 'admin' ? 'Administrateur' : 'Employé'}
                     </span>
                   </TableCell>
-                  <TableCell>
-                    <span
-                      className={cn(
-                        'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border',
-                        user.status === 'active'
-                          ? 'bg-success/10 text-success border-success/30'
-                          : 'bg-muted text-muted-foreground border-muted'
-                      )}
-                    >
-                      {user.status === 'active' ? 'Actif' : 'Inactif'}
-                    </span>
-                  </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
                       <Button 
                         variant="ghost" 
                         size="icon" 
                         className="h-8 w-8"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEdit(user);
-                        }}
+                        title="Modifier le code d'accès"
+                        onClick={() => handleChangeCode(user.id)}
+                      >
+                        <Key className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8"
+                        title="Modifier"
+                        onClick={() => handleEdit(user.id)}
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -237,10 +280,9 @@ export default function Users() {
                         variant="ghost" 
                         size="icon" 
                         className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(user);
-                        }}
+                        title="Supprimer"
+                        onClick={() => handleDelete(user.id)}
+                        disabled={user.id === currentUser?.id}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -264,13 +306,16 @@ export default function Users() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Nom complet</Label>
+              <Label htmlFor="name">Nom d'utilisateur</Label>
               <Input
                 id="name"
-                placeholder="Jean Dupont"
+                placeholder="Ex: Jean Dupont"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
+              <p className="text-xs text-muted-foreground">
+                Ce nom sera utilisé pour se connecter
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -298,19 +343,15 @@ export default function Users() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="status">Statut</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(value: 'active' | 'inactive') => setFormData({ ...formData, status: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Actif</SelectItem>
-                  <SelectItem value="inactive">Inactif</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label htmlFor="code">Code d'accès</Label>
+              <Input
+                id="code"
+                type="password"
+                placeholder="Minimum 4 caractères"
+                value={formData.code}
+                onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                maxLength={6}
+              />
             </div>
           </div>
           <DialogFooter>
@@ -330,12 +371,12 @@ export default function Users() {
           <DialogHeader>
             <DialogTitle>Modifier l'utilisateur</DialogTitle>
             <DialogDescription>
-              Modifiez les informations et permissions de l'utilisateur.
+              Modifiez les informations de l'utilisateur.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-name">Nom complet</Label>
+              <Label htmlFor="edit-name">Nom d'utilisateur</Label>
               <Input
                 id="edit-name"
                 value={formData.name}
@@ -366,21 +407,6 @@ export default function Users() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-status">Statut</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(value: 'active' | 'inactive') => setFormData({ ...formData, status: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Actif</SelectItem>
-                  <SelectItem value="inactive">Inactif</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditOpen(false)}>
@@ -388,6 +414,50 @@ export default function Users() {
             </Button>
             <Button variant="gradient" onClick={submitEdit}>
               Enregistrer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change Code Dialog */}
+      <Dialog open={isChangeCodeOpen} onOpenChange={setIsChangeCodeOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modifier le code d'accès</DialogTitle>
+            <DialogDescription>
+              Définissez un nouveau code d'accès pour {selectedUser?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-code">Nouveau code</Label>
+              <Input
+                id="new-code"
+                type="password"
+                placeholder="Minimum 4 caractères"
+                value={newCode}
+                onChange={(e) => setNewCode(e.target.value)}
+                maxLength={6}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirm-code">Confirmer le code</Label>
+              <Input
+                id="confirm-code"
+                type="password"
+                placeholder="Répétez le code"
+                value={confirmCode}
+                onChange={(e) => setConfirmCode(e.target.value)}
+                maxLength={6}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsChangeCodeOpen(false)}>
+              Annuler
+            </Button>
+            <Button variant="gradient" onClick={submitChangeCode}>
+              Modifier
             </Button>
           </DialogFooter>
         </DialogContent>
