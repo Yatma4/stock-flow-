@@ -36,6 +36,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 
 const SETTINGS_KEY = 'app_settings';
+const DELETE_PASSWORD = 'SUPPRIMER2024'; // Mot de passe spécial pour suppression
 
 interface AppSettings {
   company: {
@@ -80,6 +81,8 @@ export default function Settings() {
 
   const [isSessionsOpen, setIsSessionsOpen] = useState(false);
   const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deletePasswordError, setDeletePasswordError] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
 
   // Track changes
@@ -105,6 +108,11 @@ export default function Settings() {
   };
 
   const handleDeleteAllData = () => {
+    if (deletePassword !== DELETE_PASSWORD) {
+      setDeletePasswordError('Mot de passe incorrect');
+      return;
+    }
+
     // Clear all application data from localStorage
     const keysToDelete = [
       'app_products',
@@ -117,12 +125,20 @@ export default function Settings() {
     keysToDelete.forEach(key => localStorage.removeItem(key));
     
     setIsDeleteAllOpen(false);
+    setDeletePassword('');
+    setDeletePasswordError('');
     toast.success('Toutes les données ont été supprimées avec succès');
     
     // Reload the page to reset all contexts
     setTimeout(() => {
       window.location.reload();
     }, 1000);
+  };
+
+  const openDeleteDialog = () => {
+    setDeletePassword('');
+    setDeletePasswordError('');
+    setIsDeleteAllOpen(true);
   };
 
   const updateCompany = (field: keyof AppSettings['company'], value: string) => {
@@ -330,7 +346,7 @@ export default function Settings() {
                 <Button 
                   variant="destructive" 
                   size="sm" 
-                  onClick={() => setIsDeleteAllOpen(true)}
+                  onClick={openDeleteDialog}
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
                   Tout supprimer
@@ -405,10 +421,37 @@ export default function Settings() {
               de l'application : produits, ventes, finances, catégories et rapports.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="py-4 space-y-2">
+            <Label htmlFor="delete-password">Mot de passe de suppression</Label>
+            <Input
+              id="delete-password"
+              type="password"
+              placeholder="Entrez le mot de passe spécial"
+              value={deletePassword}
+              onChange={(e) => {
+                setDeletePassword(e.target.value);
+                setDeletePasswordError('');
+              }}
+            />
+            {deletePasswordError && (
+              <p className="text-sm text-destructive">{deletePasswordError}</p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Ce mot de passe est différent de votre code d'accès administrateur.
+            </p>
+          </div>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => {
+              setDeletePassword('');
+              setDeletePasswordError('');
+            }}>
+              Annuler
+            </AlertDialogCancel>
             <AlertDialogAction 
-              onClick={handleDeleteAllData}
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteAllData();
+              }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Oui, tout supprimer

@@ -32,7 +32,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useSales } from '@/contexts/SalesContext';
 import { useProducts } from '@/contexts/ProductContext';
-import { Plus, Search, Calendar, TrendingUp, ShoppingCart, DollarSign, XCircle, User, CalendarDays, Filter } from 'lucide-react';
+import { Plus, Search, Calendar, TrendingUp, ShoppingCart, DollarSign, XCircle, User, CalendarDays, Filter, Trash2 } from 'lucide-react';
 import { format, isToday, isYesterday, subDays, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -45,15 +45,17 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 
 export default function Sales() {
-  const { sales, addSale, cancelSale } = useSales();
+  const { sales, addSale, cancelSale, deleteCancelledSale } = useSales();
   const { products, updateStock } = useProducts();
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'yesterday' | 'week' | 'custom'>('all');
   const [customDate, setCustomDate] = useState<Date | undefined>(undefined);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isCancelOpen, setIsCancelOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [saleToCancel, setSaleToCancel] = useState<Sale | null>(null);
+  const [saleToDelete, setSaleToDelete] = useState<Sale | null>(null);
   const [formData, setFormData] = useState({
     productId: '',
     quantity: 1,
@@ -61,6 +63,7 @@ export default function Sales() {
   });
   const { addNotification } = useNotifications();
   const { currentUser } = useAuth();
+  const isAdmin = currentUser?.role === 'admin';
   const location = useLocation();
   const highlightId = location.state?.highlightId;
 
@@ -213,6 +216,25 @@ export default function Sales() {
       linkTo: '/sales',
       linkItemId: saleToCancel.id,
     });
+  };
+
+  const handleDeleteCancelledSale = (sale: Sale) => {
+    if (sale.status !== 'cancelled') {
+      toast.error('Seules les ventes annulées peuvent être supprimées');
+      return;
+    }
+    setSaleToDelete(sale);
+    setIsDeleteOpen(true);
+  };
+
+  const confirmDeleteCancelledSale = () => {
+    if (!saleToDelete) return;
+    
+    const product = products.find(p => p.id === saleToDelete.productId);
+    deleteCancelledSale(saleToDelete.id);
+    setIsDeleteOpen(false);
+    setSaleToDelete(null);
+    toast.success(`Vente annulée supprimée: ${product?.name}`);
   };
 
   return (
@@ -425,7 +447,7 @@ export default function Sales() {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      {sale.status === 'completed' && (
+                      {sale.status === 'completed' ? (
                         <Button 
                           variant="ghost" 
                           size="sm"
@@ -435,6 +457,18 @@ export default function Sales() {
                           <XCircle className="h-4 w-4 mr-1" />
                           Annuler
                         </Button>
+                      ) : (
+                        isAdmin && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => handleDeleteCancelledSale(sale)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Supprimer
+                          </Button>
+                        )
                       )}
                     </TableCell>
                   </TableRow>
@@ -556,6 +590,36 @@ export default function Sales() {
             </Button>
             <Button variant="destructive" onClick={confirmCancel}>
               Confirmer l'annulation
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Cancelled Sale Dialog */}
+      <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Supprimer la vente annulée</DialogTitle>
+            <DialogDescription>
+              Êtes-vous sûr de vouloir supprimer définitivement cette vente annulée ? Cette action est irréversible.
+            </DialogDescription>
+          </DialogHeader>
+          {saleToDelete && (
+            <div className="py-4">
+              <div className="p-3 rounded-lg bg-secondary/50 text-sm space-y-1">
+                <p><span className="text-muted-foreground">Produit:</span> <span className="font-medium">{products.find(p => p.id === saleToDelete.productId)?.name}</span></p>
+                <p><span className="text-muted-foreground">Quantité:</span> <span className="font-medium">{saleToDelete.quantity}</span></p>
+                <p><span className="text-muted-foreground">Motif d'annulation:</span> <span className="font-medium">{saleToDelete.cancelReason}</span></p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>
+              Annuler
+            </Button>
+            <Button variant="destructive" onClick={confirmDeleteCancelledSale}>
+              <Trash2 className="h-4 w-4 mr-1" />
+              Supprimer définitivement
             </Button>
           </DialogFooter>
         </DialogContent>
