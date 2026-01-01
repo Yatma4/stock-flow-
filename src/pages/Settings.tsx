@@ -36,7 +36,8 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 
 const SETTINGS_KEY = 'app_settings';
-const DELETE_PASSWORD = 'SUPPRIMER2024'; // Mot de passe spécial pour suppression
+const DELETE_PASSWORD_KEY = 'app_delete_password';
+const DEFAULT_DELETE_PASSWORD = 'SUPPRIMER2024';
 
 interface AppSettings {
   company: {
@@ -81,8 +82,13 @@ export default function Settings() {
 
   const [isSessionsOpen, setIsSessionsOpen] = useState(false);
   const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [deletePasswordError, setDeletePasswordError] = useState('');
+  const [currentDeletePassword, setCurrentDeletePassword] = useState('');
+  const [newDeletePassword, setNewDeletePassword] = useState('');
+  const [confirmNewDeletePassword, setConfirmNewDeletePassword] = useState('');
+  const [changePasswordError, setChangePasswordError] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
 
   // Track changes
@@ -107,8 +113,12 @@ export default function Settings() {
     toast.success('Toutes les sessions ont été déconnectées');
   };
 
+  const getDeletePassword = () => {
+    return localStorage.getItem(DELETE_PASSWORD_KEY) || DEFAULT_DELETE_PASSWORD;
+  };
+
   const handleDeleteAllData = () => {
-    if (deletePassword !== DELETE_PASSWORD) {
+    if (deletePassword !== getDeletePassword()) {
       setDeletePasswordError('Mot de passe incorrect');
       return;
     }
@@ -133,6 +143,39 @@ export default function Settings() {
     setTimeout(() => {
       window.location.reload();
     }, 1000);
+  };
+
+  const handleChangeDeletePassword = () => {
+    if (currentDeletePassword !== getDeletePassword()) {
+      setChangePasswordError('Mot de passe actuel incorrect');
+      return;
+    }
+
+    if (newDeletePassword.length < 6) {
+      setChangePasswordError('Le nouveau mot de passe doit contenir au moins 6 caractères');
+      return;
+    }
+
+    if (newDeletePassword !== confirmNewDeletePassword) {
+      setChangePasswordError('Les mots de passe ne correspondent pas');
+      return;
+    }
+
+    localStorage.setItem(DELETE_PASSWORD_KEY, newDeletePassword);
+    setIsChangePasswordOpen(false);
+    setCurrentDeletePassword('');
+    setNewDeletePassword('');
+    setConfirmNewDeletePassword('');
+    setChangePasswordError('');
+    toast.success('Mot de passe de suppression modifié avec succès');
+  };
+
+  const openChangePasswordDialog = () => {
+    setCurrentDeletePassword('');
+    setNewDeletePassword('');
+    setConfirmNewDeletePassword('');
+    setChangePasswordError('');
+    setIsChangePasswordOpen(true);
   };
 
   const openDeleteDialog = () => {
@@ -338,6 +381,23 @@ export default function Settings() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
+                  <p className="font-medium text-foreground">Mot de passe de suppression</p>
+                  <p className="text-sm text-muted-foreground">
+                    Modifiez le mot de passe spécial requis pour supprimer les données
+                  </p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={openChangePasswordDialog}
+                >
+                  <Shield className="mr-2 h-4 w-4" />
+                  Modifier
+                </Button>
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
                   <p className="font-medium text-foreground">Supprimer toutes les données</p>
                   <p className="text-sm text-muted-foreground">
                     Supprime tous les produits, ventes, finances, catégories et rapports
@@ -459,6 +519,70 @@ export default function Settings() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Change Delete Password Dialog */}
+      <Dialog open={isChangePasswordOpen} onOpenChange={setIsChangePasswordOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modifier le mot de passe de suppression</DialogTitle>
+            <DialogDescription>
+              Ce mot de passe est requis pour supprimer toutes les données de l'application.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="current-delete-password">Mot de passe actuel</Label>
+              <Input
+                id="current-delete-password"
+                type="password"
+                placeholder="Entrez le mot de passe actuel"
+                value={currentDeletePassword}
+                onChange={(e) => {
+                  setCurrentDeletePassword(e.target.value);
+                  setChangePasswordError('');
+                }}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-delete-password">Nouveau mot de passe</Label>
+              <Input
+                id="new-delete-password"
+                type="password"
+                placeholder="Entrez le nouveau mot de passe"
+                value={newDeletePassword}
+                onChange={(e) => {
+                  setNewDeletePassword(e.target.value);
+                  setChangePasswordError('');
+                }}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirm-delete-password">Confirmer le nouveau mot de passe</Label>
+              <Input
+                id="confirm-delete-password"
+                type="password"
+                placeholder="Confirmez le nouveau mot de passe"
+                value={confirmNewDeletePassword}
+                onChange={(e) => {
+                  setConfirmNewDeletePassword(e.target.value);
+                  setChangePasswordError('');
+                }}
+              />
+            </div>
+            {changePasswordError && (
+              <p className="text-sm text-destructive">{changePasswordError}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsChangePasswordOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={handleChangeDeletePassword}>
+              Enregistrer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }
