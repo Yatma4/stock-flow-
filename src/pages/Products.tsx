@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,6 +41,8 @@ export default function Products() {
   const { categories, addCategory, updateCategory, deleteCategory } = useCategories();
   const { currentUser } = useAuth();
   const isAdmin = currentUser?.role === 'admin';
+  const [searchParams, setSearchParams] = useSearchParams();
+  const highlightedRef = useRef<HTMLTableRowElement>(null);
   
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [searchQuery, setSearchQuery] = useState('');
@@ -49,6 +52,7 @@ export default function Products() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [highlightedProductId, setHighlightedProductId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     categoryId: '',
@@ -63,6 +67,24 @@ export default function Products() {
     color: '#2DD4BF',
   });
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+
+  // Handle highlighted product from URL
+  useEffect(() => {
+    const highlightId = searchParams.get('highlight');
+    if (highlightId) {
+      setHighlightedProductId(highlightId);
+      // Clear the URL param after reading
+      setSearchParams({});
+      // Scroll to the highlighted product after a short delay
+      setTimeout(() => {
+        highlightedRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+      // Remove highlight after 3 seconds
+      setTimeout(() => {
+        setHighlightedProductId(null);
+      }, 3000);
+    }
+  }, [searchParams, setSearchParams]);
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name
@@ -253,11 +275,16 @@ export default function Products() {
               {filteredProducts.map((product) => {
                 const category = categories.find((c) => c.id === product.categoryId);
                 const status = getStockStatus(product.quantity, product.minStock);
+                const isHighlighted = product.id === highlightedProductId;
 
                 return (
                   <TableRow 
-                    key={product.id} 
-                    className="hover:bg-secondary/30 transition-colors cursor-pointer"
+                    key={product.id}
+                    ref={isHighlighted ? highlightedRef : undefined}
+                    className={cn(
+                      "hover:bg-secondary/30 transition-all cursor-pointer",
+                      isHighlighted && "bg-warning/20 ring-2 ring-warning animate-pulse"
+                    )}
                     onClick={() => handleEdit(product)}
                   >
                     <TableCell>
