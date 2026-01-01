@@ -61,3 +61,13 @@ export interface DashboardStats {
   netProfit: number;
   todaySales: number;
 }
+
+export interface Report {
+  id: string;
+  type: 'sales' | 'financial' | 'stock' | 'profit';
+  period: 'daily' | 'monthly' | 'semester';
+  name: string;
+  content: string;
+  generatedAt: Date;
+  generatedBy: string;
+}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
@@ -31,8 +31,8 @@ import {
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { sales as initialSales, products } from '@/data/mockData';
-import { Plus, Search, Calendar, TrendingUp, ShoppingCart, DollarSign, XCircle, User } from 'lucide-react';
-import { format } from 'date-fns';
+import { Plus, Search, Calendar, TrendingUp, ShoppingCart, DollarSign, XCircle, User, CalendarDays, Filter } from 'lucide-react';
+import { format, isToday, isYesterday, subDays, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { Sale } from '@/types';
@@ -40,10 +40,14 @@ import { formatCurrency } from '@/lib/currency';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 
 export default function Sales() {
   const [sales, setSales] = useState<Sale[]>(initialSales);
   const [searchQuery, setSearchQuery] = useState('');
+  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'yesterday' | 'week' | 'custom'>('all');
+  const [customDate, setCustomDate] = useState<Date | undefined>(undefined);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isCancelOpen, setIsCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
@@ -68,17 +72,41 @@ export default function Sales() {
     }
   }, [highlightId]);
 
-  const completedSales = sales.filter(s => s.status === 'completed');
-  const totalSales = completedSales.reduce((sum, s) => sum + s.totalAmount, 0);
-  const totalProfit = completedSales.reduce((sum, s) => sum + s.profit, 0);
-  const totalItems = completedSales.reduce((sum, s) => sum + s.quantity, 0);
+  // Filter sales by date
+  const filterSalesByDate = (sale: Sale) => {
+    const saleDate = new Date(sale.date);
+    
+    switch (dateFilter) {
+      case 'today':
+        return isToday(saleDate);
+      case 'yesterday':
+        return isYesterday(saleDate);
+      case 'week':
+        const weekAgo = subDays(new Date(), 7);
+        return isWithinInterval(saleDate, { start: startOfDay(weekAgo), end: endOfDay(new Date()) });
+      case 'custom':
+        if (!customDate) return true;
+        return isWithinInterval(saleDate, { start: startOfDay(customDate), end: endOfDay(customDate) });
+      default:
+        return true;
+    }
+  };
 
-  const filteredSales = sales.filter((sale) => {
-    const product = products.find((p) => p.id === sale.productId);
-    const matchesSearch = product?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      sale.employeeName.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesSearch;
-  });
+  const filteredSales = useMemo(() => {
+    return sales.filter((sale) => {
+      const product = products.find((p) => p.id === sale.productId);
+      const matchesSearch = product?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        sale.employeeName.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesDate = filterSalesByDate(sale);
+      return matchesSearch && matchesDate;
+    });
+  }, [sales, searchQuery, dateFilter, customDate]);
+
+  // Stats based on filtered sales
+  const filteredCompletedSales = filteredSales.filter(s => s.status === 'completed');
+  const totalSales = filteredCompletedSales.reduce((sum, s) => sum + s.totalAmount, 0);
+  const totalProfit = filteredCompletedSales.reduce((sum, s) => sum + s.profit, 0);
+  const totalItems = filteredCompletedSales.reduce((sum, s) => sum + s.quantity, 0);
 
   const selectedProduct = products.find(p => p.id === formData.productId);
   const calculatedProfit = selectedProduct 
@@ -235,6 +263,64 @@ export default function Sales() {
             </div>
           </Card>
         </div>
+
+        {/* Date Filter */}
+        <Card className="p-4 shadow-card">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <CalendarDays className="h-4 w-4" />
+              <span className="text-sm font-medium">Filtrer par date:</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { id: 'all', label: 'Toutes' },
+                { id: 'today', label: "Aujourd'hui" },
+                { id: 'yesterday', label: 'Hier' },
+                { id: 'week', label: '7 derniers jours' },
+              ].map((filter) => (
+                <Button
+                  key={filter.id}
+                  variant={dateFilter === filter.id ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    setDateFilter(filter.id as typeof dateFilter);
+                    if (filter.id !== 'custom') setCustomDate(undefined);
+                  }}
+                >
+                  {filter.label}
+                </Button>
+              ))}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={dateFilter === 'custom' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setDateFilter('custom')}
+                  >
+                    <Filter className="h-4 w-4 mr-1" />
+                    {customDate ? format(customDate, 'dd/MM/yyyy') : 'Date précise'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={customDate}
+                    onSelect={(date) => {
+                      setCustomDate(date);
+                      setDateFilter('custom');
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            {dateFilter !== 'all' && (
+              <Badge variant="secondary" className="ml-auto">
+                {filteredSales.length} vente(s) trouvée(s)
+              </Badge>
+            )}
+          </div>
+        </Card>
 
         {/* Actions Bar */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

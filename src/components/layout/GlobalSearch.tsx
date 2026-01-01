@@ -1,23 +1,15 @@
 import { useState, useMemo } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { products as mockProducts, sales as mockSales } from '@/data/mockData';
 import { useCategories } from '@/contexts/CategoryContext';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import {
   Command,
   CommandEmpty,
   CommandGroup,
-  CommandInput,
   CommandItem,
   CommandList,
-  CommandSeparator,
 } from '@/components/ui/command';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
 import { Search, Package, ShoppingCart, Tag, ArrowRight } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
 
@@ -102,32 +94,29 @@ export function GlobalSearch() {
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <div className="relative hidden md:block">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Rechercher produits, catégories..."
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              if (e.target.value) setOpen(true);
-            }}
-            onFocus={() => query && setOpen(true)}
-            className="w-64 pl-9 bg-secondary/50 border-transparent focus:border-primary focus:bg-background"
-          />
-        </div>
-      </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="start">
-        <Command>
-          <CommandList>
-            {searchResults.length === 0 ? (
-              <CommandEmpty>
-                {query ? 'Aucun résultat trouvé' : 'Commencez à taper pour rechercher'}
-              </CommandEmpty>
-            ) : (
-              <>
+    <div className="relative hidden md:block">
+      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
+      <Input
+        type="search"
+        placeholder="Rechercher produits, catégories..."
+        value={query}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          if (e.target.value) setOpen(true);
+        }}
+        onFocus={() => query && setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 200)}
+        className="w-64 pl-9 bg-secondary/50 border-transparent focus:border-primary focus:bg-background"
+      />
+      {open && query && (
+        <div className="absolute top-full left-0 mt-2 w-80 z-50 rounded-md border bg-popover p-0 shadow-md">
+          <Command>
+            <CommandList>
+              {searchResults.length === 0 ? (
+                <CommandEmpty>
+                  Aucun résultat trouvé
+                </CommandEmpty>
+              ) : (
                 <CommandGroup heading="Résultats">
                   {searchResults.map((result) => {
                     const Icon = getIcon(result.type);
@@ -149,11 +138,11 @@ export function GlobalSearch() {
                     );
                   })}
                 </CommandGroup>
-              </>
-            )}
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+              )}
+            </CommandList>
+          </Command>
+        </div>
+      )}
+    </div>
   );
 }
