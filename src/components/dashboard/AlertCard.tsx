@@ -2,8 +2,11 @@ import { AlertTriangle, Package, CheckCircle } from 'lucide-react';
 import { products, categories } from '@/data/mockData';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 
 export function AlertCard() {
+  const navigate = useNavigate();
+  
   const lowStockProducts = products.filter(
     (p) => p.quantity > 0 && p.quantity <= p.minStock
   );
@@ -21,6 +24,10 @@ export function AlertCard() {
       message: `Stock faible: ${p.quantity} ${p.unit}(s)`,
     })),
   ];
+
+  const handleAlertClick = (productId: string) => {
+    navigate(`/products?highlight=${productId}`);
+  };
 
   if (allAlerts.length === 0) {
     return (
@@ -109,6 +116,7 @@ export function AlertCard() {
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ delay: 0.8 + index * 0.1 }}
                 whileHover={{ x: 4, transition: { duration: 0.2 } }}
+                onClick={() => handleAlertClick(alert.product.id)}
                 className={cn(
                   'flex items-center justify-between rounded-lg border p-3 transition-colors cursor-pointer',
                   alert.type === 'out'
