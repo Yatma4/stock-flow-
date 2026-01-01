@@ -14,6 +14,7 @@ interface StatCardProps {
   variant?: 'default' | 'primary' | 'success' | 'warning' | 'danger';
   className?: string;
   index?: number;
+  onClick?: () => void;
 }
 
 const variantStyles = {
@@ -77,6 +78,7 @@ export function StatCard({
   variant = 'default',
   className,
   index = 0,
+  onClick,
 }: StatCardProps) {
   return (
     <motion.div
@@ -92,6 +94,7 @@ export function StatCard({
         y: -4,
         transition: { duration: 0.2 }
       }}
+      onClick={onClick}
       className={cn(
         'relative overflow-hidden rounded-xl border p-5 shadow-card transition-shadow duration-300 hover:shadow-card-hover cursor-pointer group',
         variantStyles[variant],

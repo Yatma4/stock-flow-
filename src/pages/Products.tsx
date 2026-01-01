@@ -47,6 +47,7 @@ export default function Products() {
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [stockFilter, setStockFilter] = useState<string>('all');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -68,9 +69,16 @@ export default function Products() {
   });
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
 
-  // Handle highlighted product from URL
+  // Handle highlighted product or lowstock filter from URL
   useEffect(() => {
     const highlightId = searchParams.get('highlight');
+    const filterParam = searchParams.get('filter');
+    
+    if (filterParam === 'lowstock') {
+      setStockFilter('lowstock');
+      setSearchParams({});
+    }
+    
     if (highlightId) {
       setHighlightedProductId(highlightId);
       // Clear the URL param after reading
@@ -92,7 +100,9 @@ export default function Products() {
       .includes(searchQuery.toLowerCase());
     const matchesCategory =
       categoryFilter === 'all' || product.categoryId === categoryFilter;
-    return matchesSearch && matchesCategory;
+    const matchesStock = stockFilter === 'all' || 
+      (stockFilter === 'lowstock' && (product.quantity === 0 || product.quantity <= product.minStock));
+    return matchesSearch && matchesCategory && matchesStock;
   });
 
   const getStockStatus = (quantity: number, minStock: number) => {
