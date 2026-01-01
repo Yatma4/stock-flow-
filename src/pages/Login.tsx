@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Lock, Package, AlertCircle } from 'lucide-react';
+import { Lock, Package, AlertCircle, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function Login() {
+  const [username, setUsername] = useState('');
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -18,16 +19,27 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    
+    if (!username.trim()) {
+      setError('Veuillez entrer votre nom d\'utilisateur');
+      return;
+    }
+    
+    if (!code) {
+      setError('Veuillez entrer votre code d\'accès');
+      return;
+    }
+    
     setIsLoading(true);
 
     // Simulate loading
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    const success = login(code);
+    const success = login(username.trim(), code);
     if (success) {
       navigate('/');
     } else {
-      setError('Code d\'accès incorrect');
+      setError('Nom d\'utilisateur ou code d\'accès incorrect');
     }
     setIsLoading(false);
   };
@@ -50,11 +62,27 @@ export default function Login() {
             </motion.div>
             <h1 className="text-2xl font-bold text-foreground">StockManager</h1>
             <p className="text-muted-foreground mt-2">
-              Entrez votre code d'accès pour continuer
+              Connectez-vous pour accéder à l'application
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="username">Nom d'utilisateur</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="username"
+                  type="text"
+                  placeholder="Entrez votre nom"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="pl-10"
+                  autoFocus
+                />
+              </div>
+            </div>
+            
             <div className="space-y-2">
               <Label htmlFor="code">Code d'accès</Label>
               <div className="relative">
@@ -65,9 +93,8 @@ export default function Login() {
                   placeholder="••••"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  className="pl-10 text-center text-2xl tracking-[0.5em]"
+                  className="pl-10 text-center text-xl tracking-[0.3em]"
                   maxLength={6}
-                  autoFocus
                 />
               </div>
             </div>
@@ -87,7 +114,7 @@ export default function Login() {
               type="submit"
               variant="gradient"
               className="w-full"
-              disabled={!code || isLoading}
+              disabled={isLoading}
             >
               {isLoading ? 'Connexion...' : 'Se connecter'}
             </Button>
@@ -95,7 +122,9 @@ export default function Login() {
 
           <div className="mt-6 pt-6 border-t border-border">
             <p className="text-xs text-center text-muted-foreground">
-              Codes par défaut: Admin: 1234 | Employé: 5678
+              Utilisateurs par défaut:<br />
+              Nom: Administrateur, Code: 1234<br />
+              Nom: Employé 1, Code: 5678
             </p>
           </div>
         </Card>

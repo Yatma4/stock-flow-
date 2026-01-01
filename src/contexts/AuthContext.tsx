@@ -5,13 +5,14 @@ interface AuthContextType {
   currentUser: User | null;
   users: User[];
   isAuthenticated: boolean;
-  login: (code: string) => boolean;
+  login: (username: string, code: string) => boolean;
   logout: () => void;
   switchUser: (userId: string, code: string) => boolean;
   addUser: (user: User, code: string) => void;
   updateUser: (userId: string, data: Partial<User>) => void;
   deleteUser: (userId: string) => void;
   updateUserCode: (userId: string, newCode: string) => void;
+  getUserCode: (userId: string) => string | undefined;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -70,14 +71,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [currentUser]);
 
-  const login = (code: string): boolean => {
-    const userId = Object.keys(userCodes).find(id => userCodes[id] === code);
-    if (userId) {
-      const user = users.find(u => u.id === userId);
-      if (user) {
-        setCurrentUser(user);
-        return true;
-      }
+  const login = (username: string, code: string): boolean => {
+    // Find user by name (case insensitive)
+    const user = users.find(u => u.name.toLowerCase() === username.toLowerCase());
+    if (user && userCodes[user.id] === code) {
+      setCurrentUser(user);
+      return true;
     }
     return false;
   };
@@ -120,6 +119,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUserCodes(prev => ({ ...prev, [userId]: newCode }));
   };
 
+  const getUserCode = (userId: string): string | undefined => {
+    return userCodes[userId];
+  };
+
   return (
     <AuthContext.Provider value={{
       currentUser,
@@ -132,6 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       updateUser,
       deleteUser,
       updateUserCode,
+      getUserCode,
     }}>
       {children}
     </AuthContext.Provider>
