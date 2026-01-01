@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Package,
@@ -13,25 +13,35 @@ import {
   Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { currentUser } from '@/data/mockData';
+import { useAuth } from '@/contexts/AuthContext';
 
 const navigation = [
-  { name: 'Tableau de bord', href: '/', icon: LayoutDashboard },
-  { name: 'Produits', href: '/products', icon: Package },
-  { name: 'Ventes', href: '/sales', icon: ShoppingCart },
-  { name: 'Finances', href: '/finances', icon: Wallet },
-  { name: 'Rapports', href: '/reports', icon: FileText },
+  { name: 'Tableau de bord', href: '/', icon: LayoutDashboard, adminOnly: true },
+  { name: 'Produits', href: '/products', icon: Package, adminOnly: true },
+  { name: 'Ventes', href: '/sales', icon: ShoppingCart, adminOnly: false },
+  { name: 'Finances', href: '/finances', icon: Wallet, adminOnly: true },
+  { name: 'Rapports', href: '/reports', icon: FileText, adminOnly: true },
   { name: 'Utilisateurs', href: '/users', icon: Users, adminOnly: true },
-  { name: 'Paramètres', href: '/settings', icon: Settings },
+  { name: 'Paramètres', href: '/settings', icon: Settings, adminOnly: true },
 ];
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { currentUser, logout } = useAuth();
 
+  const isAdmin = currentUser?.role === 'admin';
+
+  // Filter navigation based on user role
   const filteredNavigation = navigation.filter(
-    (item) => !item.adminOnly || currentUser.role === 'admin'
+    (item) => !item.adminOnly || isAdmin
   );
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   return (
     <aside
@@ -94,20 +104,24 @@ export function Sidebar() {
             )}
           >
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary font-medium">
-              {currentUser.name.charAt(0)}
+              {currentUser?.name.charAt(0) || '?'}
             </div>
             {!collapsed && (
               <div className="flex-1 overflow-hidden">
                 <p className="truncate text-sm font-medium text-sidebar-foreground">
-                  {currentUser.name}
+                  {currentUser?.name || 'Utilisateur'}
                 </p>
                 <p className="truncate text-xs text-muted-foreground capitalize">
-                  {currentUser.role === 'admin' ? 'Administrateur' : 'Employé'}
+                  {isAdmin ? 'Administrateur' : 'Employé'}
                 </p>
               </div>
             )}
             {!collapsed && (
-              <button className="rounded-md p-1.5 text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors">
+              <button 
+                onClick={handleLogout}
+                className="rounded-md p-1.5 text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+                title="Se déconnecter"
+              >
                 <LogOut className="h-4 w-4" />
               </button>
             )}

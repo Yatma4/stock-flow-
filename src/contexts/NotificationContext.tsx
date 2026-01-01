@@ -7,6 +7,9 @@ export interface Notification {
   type: 'info' | 'warning' | 'error' | 'success';
   read: boolean;
   createdAt: Date;
+  // For navigation - which page and item to navigate to
+  linkTo?: string; // e.g., '/products', '/sales'
+  linkItemId?: string; // The ID of the item to highlight/scroll to
 }
 
 interface NotificationContextType {
@@ -27,7 +30,9 @@ const defaultNotifications: Notification[] = [
     message: 'Le produit "Café Arabica 1kg" a atteint le seuil minimum de stock.',
     type: 'warning',
     read: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 30), // 30 min ago
+    createdAt: new Date(Date.now() - 1000 * 60 * 30),
+    linkTo: '/products',
+    linkItemId: '1',
   },
   {
     id: '2',
@@ -35,7 +40,9 @@ const defaultNotifications: Notification[] = [
     message: 'Le produit "Huile d\'olive 1L" est en rupture de stock.',
     type: 'error',
     read: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2),
+    linkTo: '/products',
+    linkItemId: '2',
   },
   {
     id: '3',
@@ -43,7 +50,9 @@ const defaultNotifications: Notification[] = [
     message: 'Une vente de 2 iPhone 15 Pro a été enregistrée.',
     type: 'success',
     read: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5), // 5 hours ago
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5),
+    linkTo: '/sales',
+    linkItemId: '1',
   },
 ];
 

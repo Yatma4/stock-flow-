@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Table,
   TableBody,
@@ -27,33 +29,55 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { sales as initialSales, products } from '@/data/mockData';
-import { Plus, Search, Calendar, TrendingUp, ShoppingCart, DollarSign } from 'lucide-react';
+import { Plus, Search, Calendar, TrendingUp, ShoppingCart, DollarSign, XCircle, User } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { Sale } from '@/types';
 import { formatCurrency } from '@/lib/currency';
 import { useNotifications } from '@/contexts/NotificationContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { cn } from '@/lib/utils';
 
 export default function Sales() {
   const [sales, setSales] = useState<Sale[]>(initialSales);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isCancelOpen, setIsCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [saleToCancel, setSaleToCancel] = useState<Sale | null>(null);
   const [formData, setFormData] = useState({
     productId: '',
     quantity: 1,
-    salePrice: 0, // Negotiated sale price
+    salePrice: 0,
   });
   const { addNotification } = useNotifications();
+  const { currentUser } = useAuth();
+  const location = useLocation();
+  const highlightId = location.state?.highlightId;
 
-  const totalSales = sales.reduce((sum, s) => sum + s.totalAmount, 0);
-  const totalProfit = sales.reduce((sum, s) => sum + s.profit, 0);
-  const totalItems = sales.reduce((sum, s) => sum + s.quantity, 0);
+  // Clear highlight state after animation
+  useEffect(() => {
+    if (highlightId) {
+      const timer = setTimeout(() => {
+        window.history.replaceState({}, document.title);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightId]);
+
+  const completedSales = sales.filter(s => s.status === 'completed');
+  const totalSales = completedSales.reduce((sum, s) => sum + s.totalAmount, 0);
+  const totalProfit = completedSales.reduce((sum, s) => sum + s.profit, 0);
+  const totalItems = completedSales.reduce((sum, s) => sum + s.quantity, 0);
 
   const filteredSales = sales.filter((sale) => {
     const product = products.find((p) => p.id === sale.productId);
-    return product?.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = product?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      sale.employeeName.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesSearch;
   });
 
   const selectedProduct = products.find(p => p.id === formData.productId);
@@ -75,6 +99,11 @@ export default function Sales() {
     
     if (formData.salePrice <= 0) {
       toast.error('Veuillez entrer le prix de vente négocié');
+      return;
+    }
+
+    if (!currentUser) {
+      toast.error('Vous devez être connecté pour effectuer une vente');
       return;
     }
     
@@ -99,18 +128,68 @@ export default function Sales() {
       totalAmount: formData.salePrice * formData.quantity,
       profit: profit,
       date: new Date(),
+      employeeId: currentUser.id,
+      employeeName: currentUser.name,
+      status: 'completed',
     };
 
     setSales([newSale, ...sales]);
     setIsAddOpen(false);
     
-    // Update product quantity (in a real app, this would be in the database)
     toast.success(`Vente de ${formData.quantity} ${product.name} enregistrée - Bénéfice: ${formatCurrency(profit)}`);
     
     addNotification({
       title: 'Nouvelle vente',
-      message: `Vente de ${formData.quantity} ${product.name} pour ${formatCurrency(calculatedTotal)}`,
+      message: `${currentUser.name} a vendu ${formData.quantity} ${product.name} pour ${formatCurrency(calculatedTotal)}`,
       type: 'success',
+      linkTo: '/sales',
+      linkItemId: newSale.id,
+    });
+  };
+
+  const handleCancel = (sale: Sale) => {
+    if (sale.status === 'cancelled') {
+      toast.error('Cette vente est déjà annulée');
+      return;
+    }
+    setSaleToCancel(sale);
+    setCancelReason('');
+    setIsCancelOpen(true);
+  };
+
+  const confirmCancel = () => {
+    if (!cancelReason.trim()) {
+      toast.error('Veuillez indiquer le motif de l\'annulation');
+      return;
+    }
+
+    if (!saleToCancel || !currentUser) return;
+
+    const updatedSales = sales.map(s => 
+      s.id === saleToCancel.id 
+        ? { 
+            ...s, 
+            status: 'cancelled' as const,
+            cancelReason: cancelReason,
+            cancelledAt: new Date(),
+            cancelledBy: currentUser.name,
+          } 
+        : s
+    );
+
+    setSales(updatedSales);
+    setIsCancelOpen(false);
+    setSaleToCancel(null);
+    
+    const product = products.find(p => p.id === saleToCancel.productId);
+    toast.success(`Vente annulée: ${product?.name}`);
+    
+    addNotification({
+      title: 'Vente annulée',
+      message: `${currentUser.name} a annulé la vente de ${saleToCancel.quantity} ${product?.name}. Motif: ${cancelReason}`,
+      type: 'warning',
+      linkTo: '/sales',
+      linkItemId: saleToCancel.id,
     });
   };
 
@@ -162,7 +241,7 @@ export default function Sales() {
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Rechercher une vente..."
+              placeholder="Rechercher une vente ou un vendeur..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9"
@@ -180,25 +259,42 @@ export default function Sales() {
             <TableHeader>
               <TableRow className="bg-secondary/50">
                 <TableHead className="font-semibold">Produit</TableHead>
+                <TableHead className="font-semibold">Vendeur</TableHead>
                 <TableHead className="font-semibold">Date</TableHead>
                 <TableHead className="font-semibold text-right">Quantité</TableHead>
                 <TableHead className="font-semibold text-right">Prix unitaire</TableHead>
                 <TableHead className="font-semibold text-right">Total</TableHead>
                 <TableHead className="font-semibold text-right">Bénéfice</TableHead>
+                <TableHead className="font-semibold">Statut</TableHead>
+                <TableHead className="font-semibold text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredSales.map((sale) => {
                 const product = products.find((p) => p.id === sale.productId);
+                const isHighlighted = highlightId === sale.id;
 
                 return (
-                  <TableRow key={sale.id} className="hover:bg-secondary/30 transition-colors">
+                  <TableRow 
+                    key={sale.id} 
+                    className={cn(
+                      'transition-colors',
+                      isHighlighted && 'bg-primary/10 animate-pulse',
+                      sale.status === 'cancelled' && 'opacity-60'
+                    )}
+                  >
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary font-semibold">
                           {product?.name.charAt(0)}
                         </div>
                         <span className="font-medium text-foreground">{product?.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm">{sale.employeeName}</span>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -215,9 +311,45 @@ export default function Sales() {
                       {formatCurrency(sale.totalAmount)}
                     </TableCell>
                     <TableCell className="text-right">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success border border-success/30">
-                        +{formatCurrency(sale.profit)}
+                      <span className={cn(
+                        'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border',
+                        sale.status === 'completed' 
+                          ? 'bg-success/10 text-success border-success/30'
+                          : 'bg-muted text-muted-foreground border-muted'
+                      )}>
+                        {sale.status === 'completed' ? `+${formatCurrency(sale.profit)}` : '-'}
                       </span>
+                    </TableCell>
+                    <TableCell>
+                      {sale.status === 'completed' ? (
+                        <Badge variant="default" className="bg-success/20 text-success border-success/30">
+                          Complétée
+                        </Badge>
+                      ) : (
+                        <div className="space-y-1">
+                          <Badge variant="destructive" className="bg-destructive/20 text-destructive border-destructive/30">
+                            Annulée
+                          </Badge>
+                          {sale.cancelReason && (
+                            <p className="text-xs text-muted-foreground max-w-32 truncate" title={sale.cancelReason}>
+                              {sale.cancelReason}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {sale.status === 'completed' && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => handleCancel(sale)}
+                        >
+                          <XCircle className="h-4 w-4 mr-1" />
+                          Annuler
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 );
@@ -308,9 +440,16 @@ export default function Sales() {
                 </div>
                 {calculatedProfit < 0 && (
                   <p className="text-xs text-destructive">
-                    ⚠️ Attention: Vous vendez à perte!
+                    Attention: Vous vendez à perte!
                   </p>
                 )}
+              </div>
+            )}
+
+            {currentUser && (
+              <div className="rounded-lg bg-primary/5 p-3 border border-primary/20">
+                <p className="text-xs text-muted-foreground">Vendeur:</p>
+                <p className="font-medium text-primary">{currentUser.name}</p>
               </div>
             )}
           </div>
@@ -320,6 +459,48 @@ export default function Sales() {
             </Button>
             <Button variant="gradient" onClick={submitAdd}>
               Enregistrer la vente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Sale Dialog */}
+      <Dialog open={isCancelOpen} onOpenChange={setIsCancelOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Annuler la vente</DialogTitle>
+            <DialogDescription>
+              Veuillez indiquer le motif de l'annulation (retour article, erreur, etc.)
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {saleToCancel && (
+              <div className="rounded-lg bg-secondary/50 p-4">
+                <p className="text-sm text-muted-foreground">Vente concernée:</p>
+                <p className="font-semibold">
+                  {products.find(p => p.id === saleToCancel.productId)?.name} - 
+                  {saleToCancel.quantity} unité(s) - {formatCurrency(saleToCancel.totalAmount)}
+                </p>
+              </div>
+            )}
+            
+            <div className="space-y-2">
+              <Label htmlFor="cancelReason">Motif de l'annulation *</Label>
+              <Textarea
+                id="cancelReason"
+                placeholder="Ex: Retour client - produit défectueux"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCancelOpen(false)}>
+              Fermer
+            </Button>
+            <Button variant="destructive" onClick={confirmCancel}>
+              Confirmer l'annulation
             </Button>
           </DialogFooter>
         </DialogContent>
