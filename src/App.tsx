@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { CategoryProvider } from "./contexts/CategoryContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
+import { ReportProvider } from "./contexts/ReportContext";
 import Index from "./pages/Index";
 import Products from "./pages/Products";
 import Sales from "./pages/Sales";
@@ -70,11 +71,13 @@ const App = () => (
       <AuthProvider>
         <CategoryProvider>
           <NotificationProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
+            <ReportProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <AppRoutes />
+              </BrowserRouter>
+            </ReportProvider>
           </NotificationProvider>
         </CategoryProvider>
       </AuthProvider>
