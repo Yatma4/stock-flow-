@@ -6,6 +6,8 @@ interface SalesContextType {
   addSale: (sale: Sale) => void;
   updateSale: (saleId: string, data: Partial<Sale>) => void;
   cancelSale: (saleId: string, reason: string, cancelledBy: string) => void;
+  deleteCancelledSale: (saleId: string) => void;
+  deleteCancelledSales: () => void;
 }
 
 const SalesContext = createContext<SalesContextType | null>(null);
@@ -51,12 +53,22 @@ export function SalesProvider({ children }: { children: ReactNode }) {
     ));
   };
 
+  const deleteCancelledSale = (saleId: string) => {
+    setSales(prev => prev.filter(s => !(s.id === saleId && s.status === 'cancelled')));
+  };
+
+  const deleteCancelledSales = () => {
+    setSales(prev => prev.filter(s => s.status !== 'cancelled'));
+  };
+
   return (
     <SalesContext.Provider value={{
       sales,
       addSale,
       updateSale,
       cancelSale,
+      deleteCancelledSale,
+      deleteCancelledSales,
     }}>
       {children}
     </SalesContext.Provider>
