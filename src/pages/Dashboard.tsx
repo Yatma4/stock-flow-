@@ -8,8 +8,10 @@ import { getDashboardStats } from '@/data/mockData';
 import { formatCurrency } from '@/lib/currency';
 import { motion } from 'framer-motion';
 import { Package, TrendingUp, TrendingDown, ShoppingCart, AlertTriangle, Activity } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const stats = getDashboardStats();
 
   return (
@@ -28,7 +30,7 @@ export default function Dashboard() {
           <StatCard title="Valeur du stock" value={formatCurrency(stats.totalStockValue)} icon={Package} trend={{ value: 12, isPositive: true }} variant="primary" index={0} />
           <StatCard title="Ventes du jour" value={formatCurrency(stats.todaySales)} icon={ShoppingCart} trend={{ value: 8, isPositive: true }} variant="success" index={1} />
           <StatCard title="Bénéfice net" value={formatCurrency(stats.netProfit)} icon={stats.netProfit >= 0 ? TrendingUp : TrendingDown} trend={{ value: 15, isPositive: stats.netProfit >= 0 }} variant={stats.netProfit >= 0 ? 'success' : 'danger'} index={2} />
-          <StatCard title="Alertes stock" value={stats.lowStockProducts + stats.outOfStockProducts} icon={AlertTriangle} variant={stats.lowStockProducts + stats.outOfStockProducts > 0 ? 'warning' : 'default'} index={3} />
+          <StatCard title="Alertes stock" value={stats.lowStockProducts + stats.outOfStockProducts} icon={AlertTriangle} variant={stats.lowStockProducts + stats.outOfStockProducts > 0 ? 'warning' : 'default'} index={3} onClick={() => navigate('/products?filter=lowstock')} />
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
