@@ -15,13 +15,25 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Building2,
   Bell,
   Shield,
   Save,
   Monitor,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 const SETTINGS_KEY = 'app_settings';
 
@@ -43,8 +55,8 @@ interface AppSettings {
 
 const defaultSettings: AppSettings = {
   company: {
-    name: 'StockFlow SARL',
-    email: 'contact@stockflow.com',
+    name: 'Sallen Trading And Service',
+    email: 'contact@sallen.com',
     phone: '+225 07 00 00 00 00',
   },
   notifications: {
@@ -58,12 +70,16 @@ const defaultSettings: AppSettings = {
 };
 
 export default function Settings() {
+  const { currentUser } = useAuth();
+  const isAdmin = currentUser?.role === 'admin';
+
   const [settings, setSettings] = useState<AppSettings>(() => {
     const stored = localStorage.getItem(SETTINGS_KEY);
     return stored ? JSON.parse(stored) : defaultSettings;
   });
 
   const [isSessionsOpen, setIsSessionsOpen] = useState(false);
+  const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
 
   // Track changes
@@ -86,6 +102,27 @@ export default function Settings() {
   const handleLogoutAllSessions = () => {
     setIsSessionsOpen(false);
     toast.success('Toutes les sessions ont été déconnectées');
+  };
+
+  const handleDeleteAllData = () => {
+    // Clear all application data from localStorage
+    const keysToDelete = [
+      'app_products',
+      'app_sales',
+      'app_finances',
+      'app_categories',
+      'app_reports',
+    ];
+    
+    keysToDelete.forEach(key => localStorage.removeItem(key));
+    
+    setIsDeleteAllOpen(false);
+    toast.success('Toutes les données ont été supprimées avec succès');
+    
+    // Reload the page to reset all contexts
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
   };
 
   const updateCompany = (field: keyof AppSettings['company'], value: string) => {
@@ -267,6 +304,42 @@ export default function Settings() {
           </div>
         </Card>
 
+        {/* Admin: Delete All Data */}
+        {isAdmin && (
+          <Card className="p-6 shadow-card border-destructive/50">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-destructive/10">
+                <Trash2 className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground">Zone de danger</h3>
+                <p className="text-sm text-muted-foreground">
+                  Actions irréversibles réservées à l'administrateur
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-foreground">Supprimer toutes les données</p>
+                  <p className="text-sm text-muted-foreground">
+                    Supprime tous les produits, ventes, finances, catégories et rapports
+                  </p>
+                </div>
+                <Button 
+                  variant="destructive" 
+                  size="sm" 
+                  onClick={() => setIsDeleteAllOpen(true)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Tout supprimer
+                </Button>
+              </div>
+            </div>
+          </Card>
+        )}
+
         {/* Save Button */}
         <div className="flex justify-end gap-4">
           {hasChanges && (
@@ -321,6 +394,28 @@ export default function Settings() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete All Data Confirmation */}
+      <AlertDialog open={isDeleteAllOpen} onOpenChange={setIsDeleteAllOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Êtes-vous absolument sûr ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action est irréversible. Cela supprimera définitivement toutes les données 
+              de l'application : produits, ventes, finances, catégories et rapports.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteAllData}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Oui, tout supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </MainLayout>
   );
 }
