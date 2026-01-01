@@ -16,7 +16,9 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { products, sales, financialEntries, getDashboardStats } from '@/data/mockData';
+import { useProducts } from '@/contexts/ProductContext';
+import { useSales } from '@/contexts/SalesContext';
+import { useFinances } from '@/contexts/FinanceContext';
 import { useCategories } from '@/contexts/CategoryContext';
 import { useReports } from '@/contexts/ReportContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -59,12 +61,14 @@ export default function Reports() {
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
   const [isGenerating, setIsGenerating] = useState(false);
   const [viewingReport, setViewingReport] = useState<string | null>(null);
+  const { products } = useProducts();
+  const { sales } = useSales();
+  const { entries } = useFinances();
   const { categories } = useCategories();
   const { reports, addReport, deleteReport } = useReports();
   const { currentUser } = useAuth();
 
   const generateReportContent = (type: string) => {
-    const stats = getDashboardStats();
     const date = format(new Date(), 'dd MMMM yyyy', { locale: fr });
     const periodName = periods.find(p => p.id === selectedPeriod)?.name || '';
 
@@ -78,60 +82,64 @@ export default function Reports() {
         content += `VENTES\n${'-'.repeat(30)}\n`;
         sales.forEach(sale => {
           const product = products.find(p => p.id === sale.productId);
-          content += `\n${product?.name}\n`;
+          content += `\n${product?.name || 'Produit supprimé'}\n`;
           content += `  Quantité: ${sale.quantity}\n`;
           content += `  Prix unitaire: ${formatCurrency(sale.unitPrice)}\n`;
           content += `  Total: ${formatCurrency(sale.totalAmount)}\n`;
           content += `  Bénéfice: ${formatCurrency(sale.profit)}\n`;
           content += `  Statut: ${sale.status === 'completed' ? 'Complétée' : 'Annulée'}\n`;
         });
+        const totalSales = sales.filter(s => s.status === 'completed').reduce((sum, s) => sum + s.totalAmount, 0);
         content += `\n${'='.repeat(50)}\n`;
-        content += `TOTAL VENTES: ${formatCurrency(stats.todaySales)}\n`;
+        content += `TOTAL VENTES: ${formatCurrency(totalSales)}\n`;
         break;
 
       case 'financial':
+        const totalRevenue = entries.filter(e => e.type === 'income').reduce((sum, e) => sum + e.amount, 0);
+        const totalExpenses = entries.filter(e => e.type === 'expense').reduce((sum, e) => sum + e.amount, 0);
         content += `REVENUS\n${'-'.repeat(30)}\n`;
-        financialEntries.filter(e => e.type === 'income').forEach(e => {
+        entries.filter(e => e.type === 'income').forEach(e => {
           content += `${e.category}: ${formatCurrency(e.amount)} - ${e.description}\n`;
         });
         content += `\nDÉPENSES\n${'-'.repeat(30)}\n`;
-        financialEntries.filter(e => e.type === 'expense').forEach(e => {
+        entries.filter(e => e.type === 'expense').forEach(e => {
           content += `${e.category}: ${formatCurrency(e.amount)} - ${e.description}\n`;
         });
         content += `\n${'='.repeat(50)}\n`;
-        content += `Revenus: ${formatCurrency(stats.totalRevenue)}\n`;
-        content += `Dépenses: ${formatCurrency(stats.totalExpenses)}\n`;
-        content += `Solde: ${formatCurrency(stats.netProfit)}\n`;
+        content += `Revenus: ${formatCurrency(totalRevenue)}\n`;
+        content += `Dépenses: ${formatCurrency(totalExpenses)}\n`;
+        content += `Solde: ${formatCurrency(totalRevenue - totalExpenses)}\n`;
         break;
 
       case 'stock':
+        const totalStockValue = products.reduce((sum, p) => sum + (p.purchasePrice * p.quantity), 0);
         content += `INVENTAIRE DES PRODUITS\n${'-'.repeat(30)}\n`;
         products.forEach(p => {
           const cat = categories.find(c => c.id === p.categoryId);
           content += `\n${p.name}\n`;
-          content += `  Catégorie: ${cat?.name}\n`;
+          content += `  Catégorie: ${cat?.name || 'Sans catégorie'}\n`;
           content += `  Prix d'achat: ${formatCurrency(p.purchasePrice)}\n`;
           content += `  Quantité: ${p.quantity} ${p.unit}(s)\n`;
           content += `  Stock min: ${p.minStock}\n`;
           content += `  Statut: ${p.quantity === 0 ? 'RUPTURE' : p.quantity <= p.minStock ? 'FAIBLE' : 'OK'}\n`;
         });
         content += `\n${'='.repeat(50)}\n`;
-        content += `Total produits: ${stats.totalProducts}\n`;
-        content += `Valeur du stock: ${formatCurrency(stats.totalStockValue)}\n`;
+        content += `Total produits: ${products.length}\n`;
+        content += `Valeur du stock: ${formatCurrency(totalStockValue)}\n`;
         break;
 
       case 'profit':
         content += `ANALYSE DES BÉNÉFICES\n${'-'.repeat(30)}\n`;
-        sales.forEach(sale => {
+        sales.filter(s => s.status === 'completed').forEach(sale => {
           const product = products.find(p => p.id === sale.productId);
           const margin = product ? ((sale.unitPrice - product.purchasePrice) / product.purchasePrice * 100).toFixed(1) : '0';
-          content += `\n${product?.name}\n`;
+          content += `\n${product?.name || 'Produit supprimé'}\n`;
           content += `  Prix d'achat: ${formatCurrency(product?.purchasePrice || 0)}\n`;
           content += `  Prix de vente: ${formatCurrency(sale.unitPrice)}\n`;
           content += `  Marge: ${margin}%\n`;
           content += `  Bénéfice: ${formatCurrency(sale.profit)}\n`;
         });
-        const totalProfit = sales.reduce((sum, s) => sum + s.profit, 0);
+        const totalProfit = sales.filter(s => s.status === 'completed').reduce((sum, s) => sum + s.profit, 0);
         content += `\n${'='.repeat(50)}\n`;
         content += `BÉNÉFICE TOTAL: ${formatCurrency(totalProfit)}\n`;
         break;
@@ -153,7 +161,6 @@ export default function Reports() {
     const reportTypeName = reportTypes.find(r => r.id === selectedReport)?.name || '';
     const periodName = periods.find(p => p.id === selectedPeriod)?.name || '';
 
-    // Store the report
     addReport({
       type: selectedReport as 'sales' | 'financial' | 'stock' | 'profit',
       period: selectedPeriod as 'daily' | 'monthly' | 'semester',
@@ -163,7 +170,6 @@ export default function Reports() {
       generatedBy: currentUser?.name || 'Inconnu',
     });
 
-    // Also download it
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -203,7 +209,6 @@ export default function Reports() {
   return (
     <MainLayout title="Rapports et statistiques" subtitle="Génération et historique des rapports">
       <div className="space-y-6">
-        {/* Period Selection */}
         <Card className="p-6 shadow-card">
           <div className="flex items-center gap-4 mb-6">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
@@ -225,7 +230,6 @@ export default function Reports() {
           </div>
         </Card>
 
-        {/* Report Types */}
         <div>
           <h3 className="text-lg font-semibold text-foreground mb-4">Types de rapports</h3>
           <div className="grid gap-4 md:grid-cols-2">
@@ -248,7 +252,6 @@ export default function Reports() {
           </div>
         </div>
 
-        {/* Generate Button */}
         <Card className="p-6 shadow-card">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
@@ -268,7 +271,6 @@ export default function Reports() {
           </div>
         </Card>
 
-        {/* Report History */}
         <Card className="p-6 shadow-card">
           <div className="flex items-center gap-4 mb-6">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-chart-4/10">
@@ -324,26 +326,13 @@ export default function Reports() {
                         <TableCell>{report.generatedBy}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setViewingReport(report.content)}
-                            >
+                            <Button variant="ghost" size="sm" onClick={() => setViewingReport(report.content)}>
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDownloadReport(report.content, report.type, new Date(report.generatedAt))}
-                            >
+                            <Button variant="ghost" size="sm" onClick={() => handleDownloadReport(report.content, report.type, new Date(report.generatedAt))}>
                               <Download className="h-4 w-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => handleDeleteReport(report.id)}
-                            >
+                            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDeleteReport(report.id)}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
@@ -358,14 +347,11 @@ export default function Reports() {
         </Card>
       </div>
 
-      {/* View Report Dialog */}
       <Dialog open={!!viewingReport} onOpenChange={() => setViewingReport(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Contenu du rapport</DialogTitle>
-            <DialogDescription>
-              Aperçu du rapport généré
-            </DialogDescription>
+            <DialogDescription>Aperçu du rapport généré</DialogDescription>
           </DialogHeader>
           <ScrollArea className="h-[400px] rounded-lg border bg-secondary/20 p-4">
             <pre className="text-sm whitespace-pre-wrap font-mono">{viewingReport}</pre>

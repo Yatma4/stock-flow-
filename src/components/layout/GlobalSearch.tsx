@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { products as mockProducts, sales as mockSales } from '@/data/mockData';
+import { useProducts } from '@/contexts/ProductContext';
+import { useSales } from '@/contexts/SalesContext';
 import { useCategories } from '@/contexts/CategoryContext';
 import { Input } from '@/components/ui/input';
 import {
@@ -25,6 +26,8 @@ export function GlobalSearch() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const navigate = useNavigate();
+  const { products } = useProducts();
+  const { sales } = useSales();
   const { categories } = useCategories();
 
   const searchResults = useMemo(() => {
@@ -33,8 +36,7 @@ export function GlobalSearch() {
     const results: SearchResult[] = [];
     const q = query.toLowerCase();
 
-    // Search products
-    mockProducts.forEach(product => {
+    products.forEach(product => {
       if (product.name.toLowerCase().includes(q)) {
         const category = categories.find(c => c.id === product.categoryId);
         results.push({
@@ -47,10 +49,9 @@ export function GlobalSearch() {
       }
     });
 
-    // Search categories
     categories.forEach(category => {
       if (category.name.toLowerCase().includes(q) || category.description?.toLowerCase().includes(q)) {
-        const productCount = mockProducts.filter(p => p.categoryId === category.id).length;
+        const productCount = products.filter(p => p.categoryId === category.id).length;
         results.push({
           type: 'category',
           id: category.id,
@@ -61,9 +62,8 @@ export function GlobalSearch() {
       }
     });
 
-    // Search sales by product name
-    mockSales.forEach(sale => {
-      const product = mockProducts.find(p => p.id === sale.productId);
+    sales.forEach(sale => {
+      const product = products.find(p => p.id === sale.productId);
       if (product?.name.toLowerCase().includes(q)) {
         results.push({
           type: 'sale',
@@ -76,7 +76,7 @@ export function GlobalSearch() {
     });
 
     return results.slice(0, 10);
-  }, [query, categories]);
+  }, [query, categories, products, sales]);
 
   const handleSelect = (result: SearchResult) => {
     setOpen(false);

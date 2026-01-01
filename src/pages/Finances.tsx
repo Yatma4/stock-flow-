@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { financialEntries as initialEntries } from '@/data/mockData';
+import { useFinances } from '@/contexts/FinanceContext';
 import {
   Plus,
   Search,
@@ -43,12 +43,13 @@ import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { FinancialEntry } from '@/types';
+import { formatCurrency } from '@/lib/currency';
 
 const incomeCategories = ['Ventes', 'Services', 'Investissements', 'Autres revenus'];
 const expenseCategories = ['Achats stock', 'Salaires', 'Loyer', 'Électricité', 'Marketing', 'Fournitures', 'Autres dépenses'];
 
 export default function Finances() {
-  const [entries, setEntries] = useState<FinancialEntry[]>(initialEntries);
+  const { entries, addEntry } = useFinances();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -95,7 +96,7 @@ export default function Finances() {
       date: new Date(),
     };
 
-    setEntries([newEntry, ...entries]);
+    addEntry(newEntry);
     setIsAddOpen(false);
     toast.success(`${formData.type === 'income' ? 'Revenu' : 'Dépense'} ajouté(e) avec succès`);
   };
@@ -116,7 +117,7 @@ export default function Finances() {
               <div>
                 <p className="text-sm text-muted-foreground">Revenus totaux</p>
                 <p className="text-2xl font-bold text-success">
-                  {totalIncome.toLocaleString()} €
+                  {formatCurrency(totalIncome)}
                 </p>
               </div>
             </div>
@@ -129,7 +130,7 @@ export default function Finances() {
               <div>
                 <p className="text-sm text-muted-foreground">Dépenses totales</p>
                 <p className="text-2xl font-bold text-destructive">
-                  {totalExpenses.toLocaleString()} €
+                  {formatCurrency(totalExpenses)}
                 </p>
               </div>
             </div>
@@ -160,7 +161,7 @@ export default function Finances() {
                   )}
                 >
                   {balance >= 0 ? '+' : ''}
-                  {balance.toLocaleString()} €
+                  {formatCurrency(balance)}
                 </p>
               </div>
             </div>
@@ -212,7 +213,13 @@ export default function Finances() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredEntries.map((entry) => (
+              {filteredEntries.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    Aucune entrée financière. Ajoutez votre première entrée !
+                  </TableCell>
+                </TableRow>
+              ) : filteredEntries.map((entry) => (
                 <TableRow key={entry.id} className="hover:bg-secondary/30 transition-colors">
                   <TableCell>
                     <div
@@ -244,7 +251,7 @@ export default function Finances() {
                     {entry.description}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {format(entry.date, 'dd MMM yyyy', { locale: fr })}
+                    {format(new Date(entry.date), 'dd MMM yyyy', { locale: fr })}
                   </TableCell>
                   <TableCell className="text-right">
                     <span
@@ -254,7 +261,7 @@ export default function Finances() {
                       )}
                     >
                       {entry.type === 'income' ? '+' : '-'}
-                      {entry.amount.toLocaleString()} €
+                      {formatCurrency(entry.amount)}
                     </span>
                   </TableCell>
                 </TableRow>
@@ -319,7 +326,7 @@ export default function Finances() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="amount">Montant (€)</Label>
+              <Label htmlFor="amount">Montant (FCFA)</Label>
               <Input
                 id="amount"
                 type="number"

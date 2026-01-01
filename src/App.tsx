@@ -7,6 +7,9 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { CategoryProvider } from "./contexts/CategoryContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
 import { ReportProvider } from "./contexts/ReportContext";
+import { ProductProvider } from "./contexts/ProductContext";
+import { SalesProvider } from "./contexts/SalesContext";
+import { FinanceProvider } from "./contexts/FinanceContext";
 import Index from "./pages/Index";
 import Products from "./pages/Products";
 import Sales from "./pages/Sales";
@@ -70,15 +73,21 @@ const App = () => (
     <TooltipProvider>
       <AuthProvider>
         <CategoryProvider>
-          <NotificationProvider>
-            <ReportProvider>
-              <Toaster />
-              <Sonner />
-              <BrowserRouter>
-                <AppRoutes />
-              </BrowserRouter>
-            </ReportProvider>
-          </NotificationProvider>
+          <ProductProvider>
+            <SalesProvider>
+              <FinanceProvider>
+                <NotificationProvider>
+                  <ReportProvider>
+                    <Toaster />
+                    <Sonner />
+                    <BrowserRouter>
+                      <AppRoutes />
+                    </BrowserRouter>
+                  </ReportProvider>
+                </NotificationProvider>
+              </FinanceProvider>
+            </SalesProvider>
+          </ProductProvider>
         </CategoryProvider>
       </AuthProvider>
     </TooltipProvider>

@@ -4,7 +4,9 @@ import { AlertCard } from '@/components/dashboard/AlertCard';
 import { SalesChart } from '@/components/dashboard/SalesChart';
 import { ExpensesChart } from '@/components/dashboard/ExpensesChart';
 import { RecentSales } from '@/components/dashboard/RecentSales';
-import { getDashboardStats } from '@/data/mockData';
+import { useProducts } from '@/contexts/ProductContext';
+import { useSales } from '@/contexts/SalesContext';
+import { useFinances } from '@/contexts/FinanceContext';
 import { formatCurrency } from '@/lib/currency';
 import { motion } from 'framer-motion';
 import { Package, TrendingUp, TrendingDown, ShoppingCart, AlertTriangle, Activity } from 'lucide-react';
@@ -12,7 +14,18 @@ import { useNavigate } from 'react-router-dom';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const stats = getDashboardStats();
+  const { products } = useProducts();
+  const { sales } = useSales();
+  const { entries } = useFinances();
+
+  const totalProducts = products.length;
+  const lowStockProducts = products.filter(p => p.quantity > 0 && p.quantity <= p.minStock).length;
+  const outOfStockProducts = products.filter(p => p.quantity === 0).length;
+  const totalStockValue = products.reduce((sum, p) => sum + (p.purchasePrice * p.quantity), 0);
+  const totalRevenue = entries.filter(e => e.type === 'income').reduce((sum, e) => sum + e.amount, 0);
+  const totalExpenses = entries.filter(e => e.type === 'expense').reduce((sum, e) => sum + e.amount, 0);
+  const netProfit = totalRevenue - totalExpenses;
+  const todaySales = sales.filter(s => s.status === 'completed').reduce((sum, s) => sum + s.totalAmount, 0);
 
   return (
     <MainLayout title="Tableau de bord" subtitle="Vue d'ensemble de votre activité">
@@ -27,10 +40,10 @@ export default function Dashboard() {
         </motion.div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard title="Valeur du stock" value={formatCurrency(stats.totalStockValue)} icon={Package} trend={{ value: 12, isPositive: true }} variant="primary" index={0} />
-          <StatCard title="Ventes du jour" value={formatCurrency(stats.todaySales)} icon={ShoppingCart} trend={{ value: 8, isPositive: true }} variant="success" index={1} />
-          <StatCard title="Bénéfice net" value={formatCurrency(stats.netProfit)} icon={stats.netProfit >= 0 ? TrendingUp : TrendingDown} trend={{ value: 15, isPositive: stats.netProfit >= 0 }} variant={stats.netProfit >= 0 ? 'success' : 'danger'} index={2} />
-          <StatCard title="Alertes stock" value={stats.lowStockProducts + stats.outOfStockProducts} icon={AlertTriangle} variant={stats.lowStockProducts + stats.outOfStockProducts > 0 ? 'warning' : 'default'} index={3} onClick={() => navigate('/products?filter=lowstock')} />
+          <StatCard title="Valeur du stock" value={formatCurrency(totalStockValue)} icon={Package} trend={{ value: 12, isPositive: true }} variant="primary" index={0} />
+          <StatCard title="Ventes totales" value={formatCurrency(todaySales)} icon={ShoppingCart} trend={{ value: 8, isPositive: true }} variant="success" index={1} />
+          <StatCard title="Bénéfice net" value={formatCurrency(netProfit)} icon={netProfit >= 0 ? TrendingUp : TrendingDown} trend={{ value: 15, isPositive: netProfit >= 0 }} variant={netProfit >= 0 ? 'success' : 'danger'} index={2} />
+          <StatCard title="Alertes stock" value={lowStockProducts + outOfStockProducts} icon={AlertTriangle} variant={lowStockProducts + outOfStockProducts > 0 ? 'warning' : 'default'} index={3} onClick={() => navigate('/products?filter=lowstock')} />
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
