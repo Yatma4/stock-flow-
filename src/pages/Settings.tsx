@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,26 +23,59 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-export default function Settings() {
-  const [companyData, setCompanyData] = useState({
+const SETTINGS_KEY = 'app_settings';
+
+interface AppSettings {
+  company: {
+    name: string;
+    email: string;
+    phone: string;
+  };
+  notifications: {
+    lowStock: boolean;
+    outOfStock: boolean;
+    autoReports: boolean;
+  };
+  security: {
+    twoFactor: boolean;
+  };
+}
+
+const defaultSettings: AppSettings = {
+  company: {
     name: 'StockFlow SARL',
     email: 'contact@stockflow.com',
-    phone: '+33 1 23 45 67 89',
-  });
-
-  const [notifications, setNotifications] = useState({
+    phone: '+225 07 00 00 00 00',
+  },
+  notifications: {
     lowStock: true,
     outOfStock: true,
     autoReports: false,
-  });
-
-  const [security, setSecurity] = useState({
+  },
+  security: {
     twoFactor: false,
+  },
+};
+
+export default function Settings() {
+  const [settings, setSettings] = useState<AppSettings>(() => {
+    const stored = localStorage.getItem(SETTINGS_KEY);
+    return stored ? JSON.parse(stored) : defaultSettings;
   });
 
   const [isSessionsOpen, setIsSessionsOpen] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  // Track changes
+  useEffect(() => {
+    const stored = localStorage.getItem(SETTINGS_KEY);
+    const original = stored ? JSON.parse(stored) : defaultSettings;
+    setHasChanges(JSON.stringify(settings) !== JSON.stringify(original));
+  }, [settings]);
 
   const handleSave = () => {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    setHasChanges(false);
     toast.success('Paramètres enregistrés avec succès');
   };
 
@@ -53,6 +86,30 @@ export default function Settings() {
   const handleLogoutAllSessions = () => {
     setIsSessionsOpen(false);
     toast.success('Toutes les sessions ont été déconnectées');
+  };
+
+  const updateCompany = (field: keyof AppSettings['company'], value: string) => {
+    setSettings(prev => ({
+      ...prev,
+      company: { ...prev.company, [field]: value },
+    }));
+  };
+
+  const updateNotifications = (field: keyof AppSettings['notifications'], value: boolean) => {
+    setSettings(prev => ({
+      ...prev,
+      notifications: { ...prev.notifications, [field]: value },
+    }));
+  };
+
+  const updateSecurity = (field: keyof AppSettings['security'], value: boolean) => {
+    setSettings(prev => ({
+      ...prev,
+      security: { ...prev.security, [field]: value },
+    }));
+    if (field === 'twoFactor') {
+      toast.success(value ? '2FA activée' : '2FA désactivée');
+    }
   };
 
   return (
@@ -81,8 +138,8 @@ export default function Settings() {
                 <Label htmlFor="company-name">Nom de l'entreprise</Label>
                 <Input 
                   id="company-name" 
-                  value={companyData.name}
-                  onChange={(e) => setCompanyData({ ...companyData, name: e.target.value })}
+                  value={settings.company.name}
+                  onChange={(e) => updateCompany('name', e.target.value)}
                 />
               </div>
               <div className="space-y-2">
@@ -90,8 +147,8 @@ export default function Settings() {
                 <Input 
                   id="company-email" 
                   type="email" 
-                  value={companyData.email}
-                  onChange={(e) => setCompanyData({ ...companyData, email: e.target.value })}
+                  value={settings.company.email}
+                  onChange={(e) => updateCompany('email', e.target.value)}
                 />
               </div>
             </div>
@@ -100,13 +157,13 @@ export default function Settings() {
                 <Label htmlFor="company-phone">Téléphone</Label>
                 <Input 
                   id="company-phone" 
-                  value={companyData.phone}
-                  onChange={(e) => setCompanyData({ ...companyData, phone: e.target.value })}
+                  value={settings.company.phone}
+                  onChange={(e) => updateCompany('phone', e.target.value)}
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="company-currency">Devise</Label>
-                <Input id="company-currency" defaultValue="EUR (€)" disabled />
+                <Input id="company-currency" defaultValue="FCFA (Francs CFA)" disabled />
               </div>
             </div>
           </div>
@@ -135,8 +192,8 @@ export default function Settings() {
                 </p>
               </div>
               <Switch 
-                checked={notifications.lowStock}
-                onCheckedChange={(checked) => setNotifications({ ...notifications, lowStock: checked })}
+                checked={settings.notifications.lowStock}
+                onCheckedChange={(checked) => updateNotifications('lowStock', checked)}
               />
             </div>
             <Separator />
@@ -148,8 +205,8 @@ export default function Settings() {
                 </p>
               </div>
               <Switch 
-                checked={notifications.outOfStock}
-                onCheckedChange={(checked) => setNotifications({ ...notifications, outOfStock: checked })}
+                checked={settings.notifications.outOfStock}
+                onCheckedChange={(checked) => updateNotifications('outOfStock', checked)}
               />
             </div>
             <Separator />
@@ -161,8 +218,8 @@ export default function Settings() {
                 </p>
               </div>
               <Switch 
-                checked={notifications.autoReports}
-                onCheckedChange={(checked) => setNotifications({ ...notifications, autoReports: checked })}
+                checked={settings.notifications.autoReports}
+                onCheckedChange={(checked) => updateNotifications('autoReports', checked)}
               />
             </div>
           </div>
@@ -191,11 +248,8 @@ export default function Settings() {
                 </p>
               </div>
               <Switch 
-                checked={security.twoFactor}
-                onCheckedChange={(checked) => {
-                  setSecurity({ ...security, twoFactor: checked });
-                  toast.success(checked ? '2FA activée' : '2FA désactivée');
-                }}
+                checked={settings.security.twoFactor}
+                onCheckedChange={(checked) => updateSecurity('twoFactor', checked)}
               />
             </div>
             <Separator />
@@ -214,8 +268,18 @@ export default function Settings() {
         </Card>
 
         {/* Save Button */}
-        <div className="flex justify-end">
-          <Button variant="gradient" size="lg" onClick={handleSave}>
+        <div className="flex justify-end gap-4">
+          {hasChanges && (
+            <p className="text-sm text-muted-foreground self-center">
+              Modifications non enregistrées
+            </p>
+          )}
+          <Button 
+            variant="gradient" 
+            size="lg" 
+            onClick={handleSave}
+            disabled={!hasChanges}
+          >
             <Save className="mr-2 h-4 w-4" />
             Enregistrer les modifications
           </Button>
@@ -239,7 +303,7 @@ export default function Settings() {
                 </div>
                 <div>
                   <p className="font-medium text-foreground">Cet appareil</p>
-                  <p className="text-xs text-muted-foreground">Chrome sur Windows • Paris, France</p>
+                  <p className="text-xs text-muted-foreground">Chrome sur Windows • Session actuelle</p>
                 </div>
               </div>
               <span className="text-xs text-success font-medium px-2 py-1 rounded-full bg-success/10">

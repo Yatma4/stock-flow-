@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useNotifications, Notification } from '@/contexts/NotificationContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +11,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { Bell, Check, CheckCheck, Trash2, AlertTriangle, Info, AlertCircle, CheckCircle } from 'lucide-react';
+import { Bell, CheckCheck, Trash2, AlertTriangle, Info, AlertCircle, CheckCircle, ExternalLink } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -33,10 +34,20 @@ const colorMap = {
 export function NotificationPanel() {
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate();
 
   const handleNotificationClick = (notification: Notification) => {
     if (!notification.read) {
       markAsRead(notification.id);
+    }
+    
+    // Navigate to the linked page if available
+    if (notification.linkTo) {
+      setIsOpen(false);
+      // Navigate with state to highlight the item
+      navigate(notification.linkTo, { 
+        state: { highlightId: notification.linkItemId } 
+      });
     }
   };
 
@@ -108,16 +119,28 @@ export function NotificationPanel() {
                           <h4 className="font-medium text-foreground">
                             {notification.title}
                           </h4>
-                          {!notification.read && (
-                            <span className="h-2 w-2 rounded-full bg-primary shrink-0 mt-1.5" />
-                          )}
+                          <div className="flex items-center gap-1">
+                            {notification.linkTo && (
+                              <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                            )}
+                            {!notification.read && (
+                              <span className="h-2 w-2 rounded-full bg-primary shrink-0" />
+                            )}
+                          </div>
                         </div>
                         <p className="text-sm text-muted-foreground mt-1">
                           {notification.message}
                         </p>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          {formatDistanceToNow(notification.createdAt, { addSuffix: true, locale: fr })}
-                        </p>
+                        <div className="flex items-center justify-between mt-2">
+                          <p className="text-xs text-muted-foreground">
+                            {formatDistanceToNow(notification.createdAt, { addSuffix: true, locale: fr })}
+                          </p>
+                          {notification.linkTo && (
+                            <span className="text-xs text-primary hover:underline">
+                              Voir détails →
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </motion.div>

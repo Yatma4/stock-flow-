@@ -22,13 +22,13 @@ export const products: Product[] = [
   { id: '10', name: 'Crème hydratante', categoryId: '5', purchasePrice: 6000, quantity: 60, minStock: 15, unit: 'pièce', createdAt: new Date(), updatedAt: new Date() },
 ];
 
-// Sales now include the negotiated salePrice
+// Sales now include the negotiated salePrice and employee info
 export const sales: Sale[] = [
-  { id: '1', productId: '1', quantity: 2, unitPrice: 720000, totalAmount: 1440000, profit: 360000, date: new Date() },
-  { id: '2', productId: '4', quantity: 5, unitPrice: 167400, totalAmount: 837000, profit: 297000, date: new Date() },
-  { id: '3', productId: '5', quantity: 10, unitPrice: 21000, totalAmount: 210000, profit: 120000, date: new Date() },
-  { id: '4', productId: '6', quantity: 4, unitPrice: 35400, totalAmount: 141600, profit: 81600, date: new Date() },
-  { id: '5', productId: '10', quantity: 8, unitPrice: 15000, totalAmount: 120000, profit: 72000, date: new Date() },
+  { id: '1', productId: '1', quantity: 2, unitPrice: 720000, totalAmount: 1440000, profit: 360000, date: new Date(), employeeId: '1', employeeName: 'Administrateur', status: 'completed' },
+  { id: '2', productId: '4', quantity: 5, unitPrice: 167400, totalAmount: 837000, profit: 297000, date: new Date(), employeeId: '2', employeeName: 'Employé 1', status: 'completed' },
+  { id: '3', productId: '5', quantity: 10, unitPrice: 21000, totalAmount: 210000, profit: 120000, date: new Date(), employeeId: '2', employeeName: 'Employé 1', status: 'completed' },
+  { id: '4', productId: '6', quantity: 4, unitPrice: 35400, totalAmount: 141600, profit: 81600, date: new Date(), employeeId: '1', employeeName: 'Administrateur', status: 'completed' },
+  { id: '5', productId: '10', quantity: 8, unitPrice: 15000, totalAmount: 120000, profit: 72000, date: new Date(), employeeId: '2', employeeName: 'Employé 1', status: 'completed' },
 ];
 
 export const financialEntries: FinancialEntry[] = [

@@ -26,7 +26,12 @@ export interface Sale {
   totalAmount: number;
   profit: number; // Calculated as (unitPrice - purchasePrice) * quantity
   date: Date;
-  employeeId?: string;
+  employeeId: string;
+  employeeName: string;
+  status: 'completed' | 'cancelled';
+  cancelReason?: string;
+  cancelledAt?: Date;
+  cancelledBy?: string;
 }
 
 export interface FinancialEntry {
