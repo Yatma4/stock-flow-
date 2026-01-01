@@ -42,6 +42,8 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const reportTypes = [
   { id: 'sales', name: 'Rapport des ventes', description: 'Détail de toutes les ventes réalisées', icon: ShoppingCart, color: 'text-primary', bgColor: 'bg-primary/10' },
@@ -148,6 +150,225 @@ export default function Reports() {
     return content;
   };
 
+  const generatePDF = (type: string) => {
+    const doc = new jsPDF();
+    const date = format(new Date(), 'dd MMMM yyyy', { locale: fr });
+    const periodName = periods.find(p => p.id === selectedPeriod)?.name || '';
+    const reportTypeName = reportTypes.find(r => r.id === type)?.name || '';
+
+    // Header
+    doc.setFontSize(20);
+    doc.setTextColor(40, 40, 40);
+    doc.text('SALLEN TRADING AND SERVICE', 105, 20, { align: 'center' });
+    
+    doc.setFontSize(16);
+    doc.setTextColor(60, 60, 60);
+    doc.text(reportTypeName.toUpperCase(), 105, 32, { align: 'center' });
+
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Date: ${date}`, 14, 45);
+    doc.text(`Période: ${periodName}`, 14, 52);
+    doc.text(`Généré par: ${currentUser?.name || 'Inconnu'}`, 14, 59);
+
+    doc.setDrawColor(200, 200, 200);
+    doc.line(14, 65, 196, 65);
+
+    let yPosition = 75;
+
+    switch (type) {
+      case 'sales':
+        if (sales.length === 0) {
+          doc.setFontSize(12);
+          doc.text('Aucune vente enregistrée', 105, yPosition, { align: 'center' });
+        } else {
+          const salesData = sales.map(sale => {
+            const product = products.find(p => p.id === sale.productId);
+            return [
+              product?.name || 'Produit supprimé',
+              sale.quantity.toString(),
+              formatCurrency(sale.unitPrice),
+              formatCurrency(sale.totalAmount),
+              formatCurrency(sale.profit),
+              sale.status === 'completed' ? 'Complétée' : 'Annulée'
+            ];
+          });
+
+          autoTable(doc, {
+            startY: yPosition,
+            head: [['Produit', 'Qté', 'Prix Unit.', 'Total', 'Bénéfice', 'Statut']],
+            body: salesData,
+            theme: 'striped',
+            headStyles: { fillColor: [59, 130, 246], textColor: 255 },
+            styles: { fontSize: 9 },
+          });
+
+          const totalSales = sales.filter(s => s.status === 'completed').reduce((sum, s) => sum + s.totalAmount, 0);
+          const totalProfit = sales.filter(s => s.status === 'completed').reduce((sum, s) => sum + s.profit, 0);
+          
+          const finalY = (doc as any).lastAutoTable.finalY + 10;
+          doc.setFontSize(12);
+          doc.setTextColor(40, 40, 40);
+          doc.text(`Total Ventes: ${formatCurrency(totalSales)}`, 14, finalY);
+          doc.text(`Total Bénéfices: ${formatCurrency(totalProfit)}`, 14, finalY + 8);
+        }
+        break;
+
+      case 'financial':
+        const incomes = entries.filter(e => e.type === 'income');
+        const expenses = entries.filter(e => e.type === 'expense');
+        const totalRevenue = incomes.reduce((sum, e) => sum + e.amount, 0);
+        const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
+
+        doc.setFontSize(14);
+        doc.setTextColor(34, 197, 94);
+        doc.text('REVENUS', 14, yPosition);
+
+        if (incomes.length > 0) {
+          autoTable(doc, {
+            startY: yPosition + 5,
+            head: [['Catégorie', 'Description', 'Montant']],
+            body: incomes.map(e => [e.category, e.description, formatCurrency(e.amount)]),
+            theme: 'striped',
+            headStyles: { fillColor: [34, 197, 94], textColor: 255 },
+            styles: { fontSize: 9 },
+          });
+          yPosition = (doc as any).lastAutoTable.finalY + 15;
+        } else {
+          yPosition += 15;
+          doc.setFontSize(10);
+          doc.setTextColor(100);
+          doc.text('Aucun revenu enregistré', 14, yPosition);
+          yPosition += 15;
+        }
+
+        doc.setFontSize(14);
+        doc.setTextColor(239, 68, 68);
+        doc.text('DÉPENSES', 14, yPosition);
+
+        if (expenses.length > 0) {
+          autoTable(doc, {
+            startY: yPosition + 5,
+            head: [['Catégorie', 'Description', 'Montant']],
+            body: expenses.map(e => [e.category, e.description, formatCurrency(e.amount)]),
+            theme: 'striped',
+            headStyles: { fillColor: [239, 68, 68], textColor: 255 },
+            styles: { fontSize: 9 },
+          });
+          yPosition = (doc as any).lastAutoTable.finalY + 15;
+        } else {
+          yPosition += 15;
+          doc.setFontSize(10);
+          doc.setTextColor(100);
+          doc.text('Aucune dépense enregistrée', 14, yPosition);
+          yPosition += 15;
+        }
+
+        doc.setFontSize(12);
+        doc.setTextColor(40, 40, 40);
+        doc.text(`Total Revenus: ${formatCurrency(totalRevenue)}`, 14, yPosition);
+        doc.text(`Total Dépenses: ${formatCurrency(totalExpenses)}`, 14, yPosition + 8);
+        doc.setFontSize(14);
+        doc.setTextColor(totalRevenue - totalExpenses >= 0 ? 34 : 239, totalRevenue - totalExpenses >= 0 ? 197 : 68, totalRevenue - totalExpenses >= 0 ? 94 : 68);
+        doc.text(`SOLDE: ${formatCurrency(totalRevenue - totalExpenses)}`, 14, yPosition + 20);
+        break;
+
+      case 'stock':
+        if (products.length === 0) {
+          doc.setFontSize(12);
+          doc.text('Aucun produit enregistré', 105, yPosition, { align: 'center' });
+        } else {
+          const stockData = products.map(p => {
+            const cat = categories.find(c => c.id === p.categoryId);
+            const status = p.quantity === 0 ? 'RUPTURE' : p.quantity <= p.minStock ? 'FAIBLE' : 'OK';
+            return [
+              p.name,
+              cat?.name || 'Sans catégorie',
+              formatCurrency(p.purchasePrice),
+              `${p.quantity} ${p.unit}(s)`,
+              p.minStock.toString(),
+              status
+            ];
+          });
+
+          autoTable(doc, {
+            startY: yPosition,
+            head: [['Produit', 'Catégorie', 'Prix Achat', 'Quantité', 'Stock Min', 'Statut']],
+            body: stockData,
+            theme: 'striped',
+            headStyles: { fillColor: [234, 179, 8], textColor: 40 },
+            styles: { fontSize: 9 },
+            bodyStyles: { textColor: 40 },
+            didParseCell: (data) => {
+              if (data.section === 'body' && data.column.index === 5) {
+                const status = data.cell.text[0];
+                if (status === 'RUPTURE') {
+                  data.cell.styles.textColor = [239, 68, 68];
+                  data.cell.styles.fontStyle = 'bold';
+                } else if (status === 'FAIBLE') {
+                  data.cell.styles.textColor = [234, 179, 8];
+                  data.cell.styles.fontStyle = 'bold';
+                } else {
+                  data.cell.styles.textColor = [34, 197, 94];
+                }
+              }
+            }
+          });
+
+          const totalStockValue = products.reduce((sum, p) => sum + (p.purchasePrice * p.quantity), 0);
+          const finalY = (doc as any).lastAutoTable.finalY + 10;
+          doc.setFontSize(12);
+          doc.setTextColor(40, 40, 40);
+          doc.text(`Total produits: ${products.length}`, 14, finalY);
+          doc.text(`Valeur du stock: ${formatCurrency(totalStockValue)}`, 14, finalY + 8);
+        }
+        break;
+
+      case 'profit':
+        const completedSales = sales.filter(s => s.status === 'completed');
+        if (completedSales.length === 0) {
+          doc.setFontSize(12);
+          doc.text('Aucune vente complétée', 105, yPosition, { align: 'center' });
+        } else {
+          const profitData = completedSales.map(sale => {
+            const product = products.find(p => p.id === sale.productId);
+            const margin = product ? ((sale.unitPrice - product.purchasePrice) / product.purchasePrice * 100).toFixed(1) : '0';
+            return [
+              product?.name || 'Produit supprimé',
+              formatCurrency(product?.purchasePrice || 0),
+              formatCurrency(sale.unitPrice),
+              `${margin}%`,
+              formatCurrency(sale.profit)
+            ];
+          });
+
+          autoTable(doc, {
+            startY: yPosition,
+            head: [['Produit', 'Prix Achat', 'Prix Vente', 'Marge', 'Bénéfice']],
+            body: profitData,
+            theme: 'striped',
+            headStyles: { fillColor: [168, 85, 247], textColor: 255 },
+            styles: { fontSize: 9 },
+          });
+
+          const totalProfit = completedSales.reduce((sum, s) => sum + s.profit, 0);
+          const finalY = (doc as any).lastAutoTable.finalY + 10;
+          doc.setFontSize(14);
+          doc.setTextColor(168, 85, 247);
+          doc.text(`BÉNÉFICE TOTAL: ${formatCurrency(totalProfit)}`, 14, finalY);
+        }
+        break;
+    }
+
+    // Footer
+    const pageHeight = doc.internal.pageSize.height;
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text('Sallen Trading And Service - Rapport généré automatiquement', 105, pageHeight - 10, { align: 'center' });
+
+    return doc;
+  };
+
   const handleGenerateReport = async () => {
     if (!selectedReport) {
       toast.error('Veuillez sélectionner un type de rapport');
@@ -155,7 +376,7 @@ export default function Reports() {
     }
 
     setIsGenerating(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     const content = generateReportContent(selectedReport);
     const reportTypeName = reportTypes.find(r => r.id === selectedReport)?.name || '';
@@ -170,18 +391,11 @@ export default function Reports() {
       generatedBy: currentUser?.name || 'Inconnu',
     });
 
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `rapport_${selectedReport}_${format(new Date(), 'yyyy-MM-dd')}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const doc = generatePDF(selectedReport);
+    doc.save(`rapport_${selectedReport}_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
 
     setIsGenerating(false);
-    toast.success('Rapport généré et sauvegardé !');
+    toast.success('Rapport PDF généré et sauvegardé !');
   };
 
   const handleDeleteReport = (id: string) => {
@@ -189,17 +403,53 @@ export default function Reports() {
     toast.success('Rapport supprimé');
   };
 
-  const handleDownloadReport = (content: string, type: string, date: Date) => {
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `rapport_${type}_${format(date, 'yyyy-MM-dd')}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast.success('Rapport téléchargé');
+  const handleDownloadReport = (report: typeof reports[0]) => {
+    const doc = new jsPDF();
+    const date = format(new Date(report.generatedAt), 'dd MMMM yyyy', { locale: fr });
+    const periodName = periods.find(p => p.id === report.period)?.name || '';
+    const reportTypeName = reportTypes.find(r => r.id === report.type)?.name || '';
+
+    // Recreate PDF from stored data
+    doc.setFontSize(20);
+    doc.setTextColor(40, 40, 40);
+    doc.text('SALLEN TRADING AND SERVICE', 105, 20, { align: 'center' });
+    
+    doc.setFontSize(16);
+    doc.setTextColor(60, 60, 60);
+    doc.text(reportTypeName.toUpperCase(), 105, 32, { align: 'center' });
+
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Date: ${date}`, 14, 45);
+    doc.text(`Période: ${periodName}`, 14, 52);
+    doc.text(`Généré par: ${report.generatedBy}`, 14, 59);
+
+    doc.setDrawColor(200, 200, 200);
+    doc.line(14, 65, 196, 65);
+
+    // Add content as text (simplified for historical reports)
+    const lines = report.content.split('\n');
+    let yPosition = 75;
+    doc.setFontSize(9);
+    doc.setTextColor(60, 60, 60);
+    
+    lines.forEach(line => {
+      if (yPosition > 280) {
+        doc.addPage();
+        yPosition = 20;
+      }
+      doc.text(line, 14, yPosition);
+      yPosition += 5;
+    });
+
+    // Footer
+    const pageHeight = doc.internal.pageSize.height;
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text('Sallen Trading And Service - Rapport généré automatiquement', 105, pageHeight - 10, { align: 'center' });
+
+    doc.save(`rapport_${report.type}_${format(new Date(report.generatedAt), 'yyyy-MM-dd')}.pdf`);
+    toast.success('Rapport PDF téléchargé');
   };
 
   const getReportTypeInfo = (type: string) => {
@@ -259,14 +509,14 @@ export default function Reports() {
                 <FileText className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <h4 className="font-semibold text-foreground">Générer le rapport</h4>
+                <h4 className="font-semibold text-foreground">Générer le rapport PDF</h4>
                 <p className="text-sm text-muted-foreground">
                   {selectedReport ? `${reportTypes.find((r) => r.id === selectedReport)?.name} - ${periods.find((p) => p.id === selectedPeriod)?.name}` : 'Sélectionnez un type de rapport'}
                 </p>
               </div>
             </div>
             <Button variant="gradient" size="lg" disabled={!selectedReport || isGenerating} onClick={handleGenerateReport} className="w-full sm:w-auto">
-              {isGenerating ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Génération...</>) : (<><Download className="mr-2 h-4 w-4" />Télécharger</>)}
+              {isGenerating ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Génération...</>) : (<><Download className="mr-2 h-4 w-4" />Télécharger PDF</>)}
             </Button>
           </div>
         </Card>
@@ -329,7 +579,7 @@ export default function Reports() {
                             <Button variant="ghost" size="sm" onClick={() => setViewingReport(report.content)}>
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleDownloadReport(report.content, report.type, new Date(report.generatedAt))}>
+                            <Button variant="ghost" size="sm" onClick={() => handleDownloadReport(report)}>
                               <Download className="h-4 w-4" />
                             </Button>
                             <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDeleteReport(report.id)}>
