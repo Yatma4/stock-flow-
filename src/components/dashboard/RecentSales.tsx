@@ -1,10 +1,32 @@
 import { ArrowUpRight, ShoppingBag } from 'lucide-react';
-import { sales, products } from '@/data/mockData';
+import { useSales } from '@/contexts/SalesContext';
+import { useProducts } from '@/contexts/ProductContext';
 import { formatCurrency } from '@/lib/currency';
 import { motion } from 'framer-motion';
 
 export function RecentSales() {
+  const { sales } = useSales();
+  const { products } = useProducts();
   const recentSales = sales.slice(0, 5);
+
+  if (recentSales.length === 0) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.6 }} className="rounded-xl border bg-card p-6 shadow-card">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+            <ShoppingBag className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-foreground">Ventes récentes</h3>
+            <p className="text-sm text-muted-foreground">Les 5 dernières transactions</p>
+          </div>
+        </div>
+        <div className="text-center py-8 text-muted-foreground">
+          Aucune vente enregistrée
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.6 }} className="rounded-xl border bg-card p-6 shadow-card hover:shadow-card-hover transition-shadow duration-300">
@@ -31,10 +53,10 @@ export function RecentSales() {
             <motion.div key={sale.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.7 + index * 0.1 }} whileHover={{ x: 4, backgroundColor: 'hsl(210, 20%, 96%)', transition: { duration: 0.2 } }} className="flex items-center justify-between rounded-lg border border-transparent p-3 transition-all cursor-pointer">
               <div className="flex items-center gap-3">
                 <motion.div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary font-semibold" whileHover={{ scale: 1.1 }}>
-                  {product?.name.charAt(0)}
+                  {product?.name.charAt(0) || '?'}
                 </motion.div>
                 <div>
-                  <p className="text-sm font-medium text-foreground">{product?.name}</p>
+                  <p className="text-sm font-medium text-foreground">{product?.name || 'Produit supprimé'}</p>
                   <p className="text-xs text-muted-foreground">{sale.quantity} × {formatCurrency(sale.unitPrice)}</p>
                 </div>
               </div>

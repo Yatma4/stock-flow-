@@ -60,7 +60,7 @@ export default function Login() {
             >
               <Package className="h-8 w-8 text-primary" />
             </motion.div>
-            <h1 className="text-2xl font-bold text-foreground">StockManager</h1>
+            <h1 className="text-xl font-bold text-foreground">Sallen Trading And Service</h1>
             <p className="text-muted-foreground mt-2">
               Connectez-vous pour accéder à l'application
             </p>

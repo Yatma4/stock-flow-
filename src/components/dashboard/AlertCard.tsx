@@ -1,11 +1,14 @@
 import { AlertTriangle, Package, CheckCircle } from 'lucide-react';
-import { products, categories } from '@/data/mockData';
+import { useProducts } from '@/contexts/ProductContext';
+import { useCategories } from '@/contexts/CategoryContext';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
 export function AlertCard() {
   const navigate = useNavigate();
+  const { products } = useProducts();
+  const { categories } = useCategories();
   
   const lowStockProducts = products.filter(
     (p) => p.quantity > 0 && p.quantity <= p.minStock

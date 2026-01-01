@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { products as initialProducts } from '@/data/mockData';
+import { useProducts } from '@/contexts/ProductContext';
 import { useCategories } from '@/contexts/CategoryContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Plus, Search, Filter, Edit, Trash2, Tag } from 'lucide-react';
@@ -38,13 +38,13 @@ import { Product, Category } from '@/types';
 import { formatCurrency } from '@/lib/currency';
 
 export default function Products() {
+  const { products, addProduct, updateProduct, deleteProduct } = useProducts();
   const { categories, addCategory, updateCategory, deleteCategory } = useCategories();
   const { currentUser } = useAuth();
   const isAdmin = currentUser?.role === 'admin';
   const [searchParams, setSearchParams] = useSearchParams();
   const highlightedRef = useRef<HTMLTableRowElement>(null);
   
-  const [products, setProducts] = useState<Product[]>(initialProducts);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [stockFilter, setStockFilter] = useState<string>('all');
@@ -81,13 +81,10 @@ export default function Products() {
     
     if (highlightId) {
       setHighlightedProductId(highlightId);
-      // Clear the URL param after reading
       setSearchParams({});
-      // Scroll to the highlighted product after a short delay
       setTimeout(() => {
         highlightedRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 100);
-      // Remove highlight after 3 seconds
       setTimeout(() => {
         setHighlightedProductId(null);
       }, 3000);
@@ -152,7 +149,7 @@ export default function Products() {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-    setProducts([...products, newProduct]);
+    addProduct(newProduct);
     setIsAddOpen(false);
     toast.success(`Produit "${formData.name}" ajouté avec succès`);
   };
@@ -163,16 +160,14 @@ export default function Products() {
       toast.error('Veuillez remplir tous les champs obligatoires');
       return;
     }
-    setProducts(products.map(p =>
-      p.id === selectedProduct.id ? { ...p, ...formData, updatedAt: new Date() } : p
-    ));
+    updateProduct(selectedProduct.id, formData);
     setIsEditOpen(false);
     toast.success(`Produit "${formData.name}" modifié avec succès`);
   };
 
   const confirmDelete = () => {
     if (!selectedProduct) return;
-    setProducts(products.filter(p => p.id !== selectedProduct.id));
+    deleteProduct(selectedProduct.id);
     setIsDeleteOpen(false);
     toast.success(`Produit "${selectedProduct.name}" supprimé`);
   };
@@ -282,7 +277,13 @@ export default function Products() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredProducts.map((product) => {
+              {filteredProducts.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    Aucun produit trouvé. Ajoutez votre premier produit !
+                  </TableCell>
+                </TableRow>
+              ) : filteredProducts.map((product) => {
                 const category = categories.find((c) => c.id === product.categoryId);
                 const status = getStockStatus(product.quantity, product.minStock);
                 const isHighlighted = product.id === highlightedProductId;
@@ -322,7 +323,7 @@ export default function Products() {
                           borderColor: `${category?.color}30`,
                         }}
                       >
-                        {category?.name}
+                        {category?.name || 'Sans catégorie'}
                       </span>
                     </TableCell>
                     <TableCell className="text-right font-medium">
@@ -534,7 +535,7 @@ export default function Products() {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Confirmer la suppression</DialogTitle>
             <DialogDescription>
@@ -557,20 +558,14 @@ export default function Products() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {editingCategory ? 'Modifier la catégorie' : 'Gérer les catégories'}
+              {editingCategory ? 'Modifier la catégorie' : 'Ajouter une catégorie'}
             </DialogTitle>
-            <DialogDescription>
-              {editingCategory 
-                ? 'Modifiez les informations de la catégorie' 
-                : 'Ajoutez ou modifiez vos catégories de produits'}
-            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="cat-name">Nom de la catégorie</Label>
+              <Label htmlFor="cat-name">Nom</Label>
               <Input
                 id="cat-name"
-                placeholder="Ex: Électronique"
                 value={categoryForm.name}
                 onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })}
               />
@@ -579,7 +574,6 @@ export default function Products() {
               <Label htmlFor="cat-desc">Description</Label>
               <Input
                 id="cat-desc"
-                placeholder="Ex: Appareils et accessoires"
                 value={categoryForm.description}
                 onChange={(e) => setCategoryForm({ ...categoryForm, description: e.target.value })}
               />
@@ -602,24 +596,35 @@ export default function Products() {
               </div>
             </div>
             
-            {!editingCategory && categories.length > 0 && (
-              <div className="pt-4 border-t">
-                <Label className="text-sm text-muted-foreground mb-2 block">Catégories existantes</Label>
-                <div className="space-y-2 max-h-40 overflow-y-auto">
+            {/* Existing categories list */}
+            {categories.length > 0 && (
+              <div className="border-t pt-4 mt-4">
+                <Label>Catégories existantes</Label>
+                <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
                   {categories.map((cat) => (
                     <div key={cat.id} className="flex items-center justify-between p-2 rounded-lg bg-secondary/50">
                       <div className="flex items-center gap-2">
-                        <div 
-                          className="h-4 w-4 rounded"
+                        <div
+                          className="w-4 h-4 rounded"
                           style={{ backgroundColor: cat.color }}
                         />
-                        <span className="text-sm font-medium">{cat.name}</span>
+                        <span className="text-sm">{cat.name}</span>
                       </div>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditCategory(cat)}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => handleEditCategory(cat)}
+                        >
                           <Edit className="h-3 w-3" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteCategory(cat.id)}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive"
+                          onClick={() => handleDeleteCategory(cat.id)}
+                        >
                           <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
@@ -630,14 +635,11 @@ export default function Products() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => {
-              setIsCategoryOpen(false);
-              setEditingCategory(null);
-            }}>
-              {editingCategory ? 'Annuler' : 'Fermer'}
+            <Button variant="outline" onClick={() => setIsCategoryOpen(false)}>
+              Fermer
             </Button>
             <Button variant="gradient" onClick={handleAddCategory}>
-              {editingCategory ? 'Enregistrer' : 'Ajouter catégorie'}
+              {editingCategory ? 'Modifier' : 'Ajouter'}
             </Button>
           </DialogFooter>
         </DialogContent>

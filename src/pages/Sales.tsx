@@ -30,7 +30,8 @@ import {
 } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { sales as initialSales, products } from '@/data/mockData';
+import { useSales } from '@/contexts/SalesContext';
+import { useProducts } from '@/contexts/ProductContext';
 import { Plus, Search, Calendar, TrendingUp, ShoppingCart, DollarSign, XCircle, User, CalendarDays, Filter } from 'lucide-react';
 import { format, isToday, isYesterday, subDays, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -44,7 +45,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 
 export default function Sales() {
-  const [sales, setSales] = useState<Sale[]>(initialSales);
+  const { sales, addSale, cancelSale } = useSales();
+  const { products, updateStock } = useProducts();
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'yesterday' | 'week' | 'custom'>('all');
   const [customDate, setCustomDate] = useState<Date | undefined>(undefined);
@@ -100,7 +102,7 @@ export default function Sales() {
       const matchesDate = filterSalesByDate(sale);
       return matchesSearch && matchesDate;
     });
-  }, [sales, searchQuery, dateFilter, customDate]);
+  }, [sales, searchQuery, dateFilter, customDate, products]);
 
   // Stats based on filtered sales
   const filteredCompletedSales = filteredSales.filter(s => s.status === 'completed');
@@ -161,7 +163,8 @@ export default function Sales() {
       status: 'completed',
     };
 
-    setSales([newSale, ...sales]);
+    addSale(newSale);
+    updateStock(formData.productId, -formData.quantity);
     setIsAddOpen(false);
     
     toast.success(`Vente de ${formData.quantity} ${product.name} enregistrée - Bénéfice: ${formatCurrency(profit)}`);
@@ -193,19 +196,10 @@ export default function Sales() {
 
     if (!saleToCancel || !currentUser) return;
 
-    const updatedSales = sales.map(s => 
-      s.id === saleToCancel.id 
-        ? { 
-            ...s, 
-            status: 'cancelled' as const,
-            cancelReason: cancelReason,
-            cancelledAt: new Date(),
-            cancelledBy: currentUser.name,
-          } 
-        : s
-    );
-
-    setSales(updatedSales);
+    cancelSale(saleToCancel.id, cancelReason, currentUser.name);
+    // Restore stock
+    updateStock(saleToCancel.productId, saleToCancel.quantity);
+    
     setIsCancelOpen(false);
     setSaleToCancel(null);
     
@@ -356,7 +350,13 @@ export default function Sales() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredSales.map((sale) => {
+              {filteredSales.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                    Aucune vente trouvée. Enregistrez votre première vente !
+                  </TableCell>
+                </TableRow>
+              ) : filteredSales.map((sale) => {
                 const product = products.find((p) => p.id === sale.productId);
                 const isHighlighted = highlightId === sale.id;
 
@@ -372,9 +372,9 @@ export default function Sales() {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary font-semibold">
-                          {product?.name.charAt(0)}
+                          {product?.name.charAt(0) || '?'}
                         </div>
-                        <span className="font-medium text-foreground">{product?.name}</span>
+                        <span className="font-medium text-foreground">{product?.name || 'Produit supprimé'}</span>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -386,7 +386,7 @@ export default function Sales() {
                     <TableCell>
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <Calendar className="h-4 w-4" />
-                        {format(sale.date, 'dd MMM yyyy', { locale: fr })}
+                        {format(new Date(sale.date), 'dd MMM yyyy', { locale: fr })}
                       </div>
                     </TableCell>
                     <TableCell className="text-right font-medium">{sale.quantity}</TableCell>
@@ -447,95 +447,77 @@ export default function Sales() {
 
       {/* Add Sale Dialog */}
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Nouvelle vente</DialogTitle>
             <DialogDescription>
-              Sélectionnez un produit et entrez le prix négocié avec le client.
+              Enregistrez une nouvelle vente avec le prix négocié.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="product">Produit</Label>
+              <Label>Produit</Label>
               <Select
                 value={formData.productId}
-                onValueChange={(value) => setFormData({ ...formData, productId: value })}
+                onValueChange={(value) => {
+                  const product = products.find(p => p.id === value);
+                  setFormData({ 
+                    ...formData, 
+                    productId: value,
+                    salePrice: product?.purchasePrice || 0,
+                  });
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Sélectionner un produit" />
                 </SelectTrigger>
                 <SelectContent>
-                  {products.map((product) => (
+                  {products.filter(p => p.quantity > 0).map((product) => (
                     <SelectItem key={product.id} value={product.id}>
-                      {product.name} - Stock: {product.quantity} {product.unit}(s)
+                      {product.name} ({product.quantity} {product.unit}(s) disponibles)
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            
+
             {selectedProduct && (
-              <div className="rounded-lg bg-secondary/50 p-3">
-                <p className="text-sm text-muted-foreground">Prix d'achat:</p>
-                <p className="font-semibold">{formatCurrency(selectedProduct.purchasePrice)}</p>
-              </div>
-            )}
-            
-            <div className="space-y-2">
-              <Label htmlFor="quantity">Quantité</Label>
-              <Input
-                id="quantity"
-                type="number"
-                min="1"
-                max={selectedProduct?.quantity || 999}
-                value={formData.quantity}
-                onChange={(e) => setFormData({ ...formData, quantity: Number(e.target.value) })}
-              />
-              {selectedProduct && (
-                <p className="text-xs text-muted-foreground">
-                  Disponible: {selectedProduct.quantity} {selectedProduct.unit}(s)
-                </p>
-              )}
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="salePrice">Prix de vente négocié (FCFA)</Label>
-              <Input
-                id="salePrice"
-                type="number"
-                min="0"
-                placeholder="Entrez le prix après négociation"
-                value={formData.salePrice || ''}
-                onChange={(e) => setFormData({ ...formData, salePrice: Number(e.target.value) })}
-              />
-            </div>
-            
-            {formData.productId && formData.salePrice > 0 && (
-              <div className="rounded-lg bg-secondary/50 p-4 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Total:</span>
-                  <span className="font-bold text-foreground">
-                    {formatCurrency(calculatedTotal)}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Bénéfice:</span>
-                  <span className={`font-bold ${calculatedProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
-                    {calculatedProfit >= 0 ? '+' : ''}{formatCurrency(calculatedProfit)}
-                  </span>
-                </div>
-                {calculatedProfit < 0 && (
-                  <p className="text-xs text-destructive">
-                    Attention: Vous vendez à perte!
-                  </p>
-                )}
+              <div className="p-3 rounded-lg bg-secondary/50 text-sm">
+                <p className="text-muted-foreground">Prix d'achat: <span className="font-medium text-foreground">{formatCurrency(selectedProduct.purchasePrice)}</span></p>
               </div>
             )}
 
-            {currentUser && (
-              <div className="rounded-lg bg-primary/5 p-3 border border-primary/20">
-                <p className="text-xs text-muted-foreground">Vendeur:</p>
-                <p className="font-medium text-primary">{currentUser.name}</p>
+            <div className="space-y-2">
+              <Label>Prix de vente unitaire (FCFA)</Label>
+              <Input
+                type="number"
+                value={formData.salePrice}
+                onChange={(e) => setFormData({ ...formData, salePrice: Number(e.target.value) })}
+                placeholder="Entrez le prix de vente négocié"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Quantité</Label>
+              <Input
+                type="number"
+                min="1"
+                max={selectedProduct?.quantity || 1}
+                value={formData.quantity}
+                onChange={(e) => setFormData({ ...formData, quantity: Number(e.target.value) })}
+              />
+            </div>
+
+            {selectedProduct && formData.salePrice > 0 && (
+              <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <span className="text-muted-foreground">Total vente:</span>
+                  <span className="font-semibold text-right">{formatCurrency(calculatedTotal)}</span>
+                  <span className="text-muted-foreground">Bénéfice:</span>
+                  <span className={cn("font-semibold text-right", calculatedProfit >= 0 ? "text-success" : "text-destructive")}>
+                    {calculatedProfit >= 0 ? '+' : ''}{formatCurrency(calculatedProfit)}
+                  </span>
+                </div>
               </div>
             )}
           </div>
@@ -552,38 +534,25 @@ export default function Sales() {
 
       {/* Cancel Sale Dialog */}
       <Dialog open={isCancelOpen} onOpenChange={setIsCancelOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Annuler la vente</DialogTitle>
             <DialogDescription>
-              Veuillez indiquer le motif de l'annulation (retour article, erreur, etc.)
+              Indiquez le motif de l'annulation. Le stock sera restauré automatiquement.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            {saleToCancel && (
-              <div className="rounded-lg bg-secondary/50 p-4">
-                <p className="text-sm text-muted-foreground">Vente concernée:</p>
-                <p className="font-semibold">
-                  {products.find(p => p.id === saleToCancel.productId)?.name} - 
-                  {saleToCancel.quantity} unité(s) - {formatCurrency(saleToCancel.totalAmount)}
-                </p>
-              </div>
-            )}
-            
-            <div className="space-y-2">
-              <Label htmlFor="cancelReason">Motif de l'annulation *</Label>
-              <Textarea
-                id="cancelReason"
-                placeholder="Ex: Retour client - produit défectueux"
-                value={cancelReason}
-                onChange={(e) => setCancelReason(e.target.value)}
-                rows={3}
-              />
-            </div>
+          <div className="py-4">
+            <Label>Motif de l'annulation</Label>
+            <Textarea
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Ex: Erreur de saisie, retour client..."
+              className="mt-2"
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCancelOpen(false)}>
-              Fermer
+              Annuler
             </Button>
             <Button variant="destructive" onClick={confirmCancel}>
               Confirmer l'annulation
