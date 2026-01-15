@@ -1,6 +1,7 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { expensesByCategory } from '@/data/mockData';
 import { motion } from 'framer-motion';
+import { formatCurrency } from '@/lib/currency';
 
 const COLORS = [
   'hsl(173, 58%, 39%)',
@@ -60,7 +61,7 @@ export function ExpensesChart() {
                   borderRadius: '8px',
                   boxShadow: '0 4px 6px -1px hsl(220 25% 10% / 0.1)',
                 }}
-                formatter={(value: number) => [`${value.toLocaleString()} €`, '']}
+                formatter={(value: number) => [formatCurrency(value), '']}
               />
             </PieChart>
           </ResponsiveContainer>
@@ -86,7 +87,7 @@ export function ExpensesChart() {
               </div>
               <div className="text-right">
                 <p className="text-sm font-medium text-foreground">
-                  {expense.amount.toLocaleString()} €
+                  {formatCurrency(expense.amount)}
                 </p>
                 <p className="text-xs text-muted-foreground">{expense.percentage}%</p>
               </div>
@@ -102,7 +103,7 @@ export function ExpensesChart() {
         transition={{ delay: 1.2 }}
       >
         <span className="text-sm font-medium text-muted-foreground">Total des dépenses</span>
-        <span className="text-lg font-bold text-foreground">{total.toLocaleString()} €</span>
+        <span className="text-lg font-bold text-foreground">{formatCurrency(total)}</span>
       </motion.div>
     </motion.div>
   );

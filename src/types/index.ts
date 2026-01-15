@@ -65,7 +65,7 @@ export interface DashboardStats {
 export interface Report {
   id: string;
   type: 'sales' | 'financial' | 'stock' | 'profit';
-  period: 'daily' | 'monthly' | 'semester';
+  period: 'daily' | 'monthly' | 'semester' | 'annual';
   name: string;
   content: string;
   generatedAt: Date;

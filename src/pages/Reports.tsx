@@ -22,7 +22,7 @@ import { useFinances } from '@/contexts/FinanceContext';
 import { useCategories } from '@/contexts/CategoryContext';
 import { useReports } from '@/contexts/ReportContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { formatCurrency } from '@/lib/currency';
+import { formatCurrency, formatCurrencyPDF } from '@/lib/currency';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
@@ -56,6 +56,7 @@ const periods = [
   { id: 'daily', name: 'Quotidien', description: 'Rapport du jour' },
   { id: 'monthly', name: 'Mensuel', description: 'Rapport du mois' },
   { id: 'semester', name: 'Semestriel', description: 'Rapport sur 6 mois' },
+  { id: 'annual', name: 'Annuel', description: 'Rapport de l\'annee' },
 ];
 
 export default function Reports() {
@@ -195,9 +196,9 @@ export default function Reports() {
             return [
               product?.name || 'Produit supprime',
               sale.quantity.toString(),
-              formatCurrency(sale.unitPrice),
-              formatCurrency(sale.totalAmount),
-              formatCurrency(sale.profit),
+              formatCurrencyPDF(sale.unitPrice),
+              formatCurrencyPDF(sale.totalAmount),
+              formatCurrencyPDF(sale.profit),
               sale.status === 'completed' ? 'Completee' : 'Annulee'
             ];
           });
@@ -256,12 +257,12 @@ export default function Reports() {
           doc.setTextColor(255, 255, 255);
           doc.text('TOTAL VENTES', 58, finalY + 10, { align: 'center' });
           doc.setFontSize(14);
-          doc.text(formatCurrency(totalSales), 58, finalY + 20, { align: 'center' });
+          doc.text(formatCurrencyPDF(totalSales), 58, finalY + 20, { align: 'center' });
           
           doc.setFontSize(10);
           doc.text('TOTAL BENEFICES', 152, finalY + 10, { align: 'center' });
           doc.setFontSize(14);
-          doc.text(formatCurrency(totalProfit), 152, finalY + 20, { align: 'center' });
+          doc.text(formatCurrencyPDF(totalProfit), 152, finalY + 20, { align: 'center' });
         }
         break;
 
@@ -282,7 +283,7 @@ export default function Reports() {
           autoTable(doc, {
             startY: yPosition + 10,
             head: [['Categorie', 'Description', 'Montant']],
-            body: incomes.map(e => [e.category, e.description, formatCurrency(e.amount)]),
+            body: incomes.map(e => [e.category, e.description, formatCurrencyPDF(e.amount)]),
             theme: 'grid',
             headStyles: { fillColor: [34, 197, 94], textColor: 255, fontStyle: 'bold' },
             styles: { fontSize: 9, cellPadding: 3 },
@@ -309,7 +310,7 @@ export default function Reports() {
           autoTable(doc, {
             startY: yPosition + 10,
             head: [['Categorie', 'Description', 'Montant']],
-            body: expenses.map(e => [e.category, e.description, formatCurrency(e.amount)]),
+            body: expenses.map(e => [e.category, e.description, formatCurrencyPDF(e.amount)]),
             theme: 'grid',
             headStyles: { fillColor: [239, 68, 68], textColor: 255, fontStyle: 'bold' },
             styles: { fontSize: 9, cellPadding: 3 },
@@ -341,9 +342,9 @@ export default function Reports() {
         doc.text('Solde', 167, yPosition + 8, { align: 'center' });
         
         doc.setFontSize(11);
-        doc.text(formatCurrency(totalRevenue), 43, yPosition + 17, { align: 'center' });
-        doc.text(formatCurrency(totalExpenses), 105, yPosition + 17, { align: 'center' });
-        doc.text(formatCurrency(balance), 167, yPosition + 17, { align: 'center' });
+        doc.text(formatCurrencyPDF(totalRevenue), 43, yPosition + 17, { align: 'center' });
+        doc.text(formatCurrencyPDF(totalExpenses), 105, yPosition + 17, { align: 'center' });
+        doc.text(formatCurrencyPDF(balance), 167, yPosition + 17, { align: 'center' });
         break;
 
       case 'stock':
@@ -360,7 +361,7 @@ export default function Reports() {
               return [
                 p.name,
                 cat?.name || 'Sans categorie',
-                formatCurrency(p.purchasePrice),
+                formatCurrencyPDF(p.purchasePrice),
                 `${p.quantity} ${p.unit}(s)`,
                 p.minStock.toString(),
                 status
@@ -432,7 +433,7 @@ export default function Reports() {
           doc.text(lowStock.toString(), 84, finalY + 17, { align: 'center' });
           doc.text(outOfStock.toString(), 132, finalY + 17, { align: 'center' });
           doc.setFontSize(9);
-          doc.text(formatCurrency(totalStockValue), 177, finalY + 17, { align: 'center' });
+          doc.text(formatCurrencyPDF(totalStockValue), 177, finalY + 17, { align: 'center' });
         }
         break;
 
@@ -450,10 +451,10 @@ export default function Reports() {
               : '0';
             return [
               product?.name || 'Produit supprime',
-              formatCurrency(product?.purchasePrice || 0),
-              formatCurrency(sale.unitPrice),
+              formatCurrencyPDF(product?.purchasePrice || 0),
+              formatCurrencyPDF(sale.unitPrice),
               `${margin}%`,
-              formatCurrency(sale.profit)
+              formatCurrencyPDF(sale.profit)
             ];
           });
 
@@ -511,7 +512,7 @@ export default function Reports() {
           doc.setTextColor(255, 255, 255);
           doc.text('BENEFICE TOTAL', 58, finalY + 10, { align: 'center' });
           doc.setFontSize(16);
-          doc.text(formatCurrency(totalProfit), 58, finalY + 22, { align: 'center' });
+          doc.text(formatCurrencyPDF(totalProfit), 58, finalY + 22, { align: 'center' });
           
           doc.setFontSize(10);
           doc.text('MARGE MOYENNE', 152, finalY + 10, { align: 'center' });
@@ -547,7 +548,7 @@ export default function Reports() {
 
     addReport({
       type: selectedReport as 'sales' | 'financial' | 'stock' | 'profit',
-      period: selectedPeriod as 'daily' | 'monthly' | 'semester',
+      period: selectedPeriod as 'daily' | 'monthly' | 'semester' | 'annual',
       name: `${reportTypeName} - ${periodName}`,
       content: content,
       generatedAt: new Date(),
@@ -632,7 +633,7 @@ export default function Reports() {
               <p className="text-sm text-muted-foreground">Sélectionnez la période pour générer vos rapports</p>
             </div>
           </div>
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-4">
             {periods.map((period) => (
               <button key={period.id} onClick={() => setSelectedPeriod(period.id)}
                 className={`flex flex-col items-start rounded-lg border p-4 text-left transition-all duration-200 ${selectedPeriod === period.id ? 'border-primary bg-primary/5 shadow-sm' : 'border-border hover:border-primary/50 hover:bg-secondary/50'}`}>
