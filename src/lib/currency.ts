@@ -6,10 +6,26 @@ export function formatCurrency(amount: number): string {
   return `${amount.toLocaleString(CURRENCY_LOCALE)} ${CURRENCY_SYMBOL}`;
 }
 
-// Format for PDF - uses spaces as thousands separator (safer for PDF rendering)
+// Format number with simple spaces for thousands separator (safe for PDF)
+function formatNumberSimple(num: number): string {
+  const isNegative = num < 0;
+  const absNum = Math.abs(num);
+  const parts = absNum.toFixed(0).split('');
+  const result: string[] = [];
+  
+  for (let i = parts.length - 1, count = 0; i >= 0; i--, count++) {
+    if (count > 0 && count % 3 === 0) {
+      result.unshift(' ');
+    }
+    result.unshift(parts[i]);
+  }
+  
+  return (isNegative ? '-' : '') + result.join('');
+}
+
+// Format for PDF - uses simple ASCII spaces as thousands separator (safer for PDF rendering)
 export function formatCurrencyPDF(amount: number): string {
-  const formatted = amount.toLocaleString(CURRENCY_LOCALE).replace(/\u00A0/g, ' ');
-  return `${formatted} ${CURRENCY_SYMBOL}`;
+  return `${formatNumberSimple(amount)} ${CURRENCY_SYMBOL}`;
 }
 
 export function formatCurrencyShort(amount: number): string {
