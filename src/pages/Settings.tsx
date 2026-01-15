@@ -137,13 +137,19 @@ export default function Settings() {
       return;
     }
 
-    // Clear all application data from localStorage
+    // Clear ALL application data from localStorage - complete reset
     const keysToDelete = [
       'app_products',
       'app_sales',
       'app_finances',
       'app_categories',
       'app_reports',
+      'app_users',
+      'app_user_codes',
+      'app_settings',
+      'app_delete_password',
+      'app_recovery',
+      'app_current_user',
     ];
     
     keysToDelete.forEach(key => localStorage.removeItem(key));
@@ -151,11 +157,11 @@ export default function Settings() {
     setIsDeleteAllOpen(false);
     setDeletePassword('');
     setDeletePasswordError('');
-    toast.success('Toutes les données ont été supprimées avec succès');
+    toast.success('Application réinitialisée avec succès');
     
-    // Reload the page to reset all contexts
+    // Reload the page to reset all contexts and return to login
     setTimeout(() => {
-      window.location.reload();
+      window.location.href = '/login';
     }, 1000);
   };
 
