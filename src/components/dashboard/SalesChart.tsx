@@ -10,6 +10,7 @@ import {
 import { salesByMonth } from '@/data/mockData';
 import { motion } from 'framer-motion';
 import { TrendingUp } from 'lucide-react';
+import { formatCurrency } from '@/lib/currency';
 
 export function SalesChart() {
   return (
@@ -88,7 +89,7 @@ export function SalesChart() {
                 borderRadius: '8px',
                 boxShadow: '0 4px 6px -1px hsl(220 25% 10% / 0.1)',
               }}
-              formatter={(value: number) => [`${value.toLocaleString()} €`, '']}
+              formatter={(value: number) => [formatCurrency(value), '']}
               labelStyle={{ color: 'hsl(220, 25%, 10%)', fontWeight: 600 }}
             />
             <Area
