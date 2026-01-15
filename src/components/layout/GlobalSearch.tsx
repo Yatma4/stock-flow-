@@ -36,44 +36,57 @@ export function GlobalSearch() {
     const results: SearchResult[] = [];
     const q = query.toLowerCase();
 
-    products.forEach(product => {
-      if (product.name.toLowerCase().includes(q)) {
-        const category = categories.find(c => c.id === product.categoryId);
-        results.push({
-          type: 'product',
-          id: product.id,
-          title: product.name,
-          subtitle: `${category?.name || 'Sans catégorie'} - ${formatCurrency(product.purchasePrice)}`,
-          link: '/products',
-        });
-      }
-    });
+    // Produits triés alphabétiquement
+    [...products]
+      .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+      .forEach(product => {
+        if (product.name.toLowerCase().includes(q)) {
+          const category = categories.find(c => c.id === product.categoryId);
+          results.push({
+            type: 'product',
+            id: product.id,
+            title: product.name,
+            subtitle: `${category?.name || 'Sans catégorie'} - ${formatCurrency(product.purchasePrice)}`,
+            link: '/products',
+          });
+        }
+      });
 
-    categories.forEach(category => {
-      if (category.name.toLowerCase().includes(q) || category.description?.toLowerCase().includes(q)) {
-        const productCount = products.filter(p => p.categoryId === category.id).length;
-        results.push({
-          type: 'category',
-          id: category.id,
-          title: category.name,
-          subtitle: `${productCount} produit(s)`,
-          link: '/products',
-        });
-      }
-    });
+    // Catégories triées alphabétiquement
+    [...categories]
+      .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+      .forEach(category => {
+        if (category.name.toLowerCase().includes(q) || category.description?.toLowerCase().includes(q)) {
+          const productCount = products.filter(p => p.categoryId === category.id).length;
+          results.push({
+            type: 'category',
+            id: category.id,
+            title: category.name,
+            subtitle: `${productCount} produit(s)`,
+            link: '/products',
+          });
+        }
+      });
 
-    sales.forEach(sale => {
-      const product = products.find(p => p.id === sale.productId);
-      if (product?.name.toLowerCase().includes(q)) {
-        results.push({
-          type: 'sale',
-          id: sale.id,
-          title: `Vente: ${product.name}`,
-          subtitle: `${sale.quantity} × ${formatCurrency(sale.unitPrice)}`,
-          link: '/sales',
-        });
-      }
-    });
+    // Ventes triées par nom de produit alphabétiquement
+    [...sales]
+      .sort((a, b) => {
+        const productA = products.find(p => p.id === a.productId);
+        const productB = products.find(p => p.id === b.productId);
+        return (productA?.name || '').localeCompare(productB?.name || '', 'fr');
+      })
+      .forEach(sale => {
+        const product = products.find(p => p.id === sale.productId);
+        if (product?.name.toLowerCase().includes(q)) {
+          results.push({
+            type: 'sale',
+            id: sale.id,
+            title: `Vente: ${product.name}`,
+            subtitle: `${sale.quantity} × ${formatCurrency(sale.unitPrice)}`,
+            link: '/sales',
+          });
+        }
+      });
 
     return results.slice(0, 10);
   }, [query, categories, products, sales]);

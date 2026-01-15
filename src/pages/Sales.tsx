@@ -21,13 +21,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useSales } from '@/contexts/SalesContext';
@@ -497,8 +490,8 @@ export default function Sales() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Produit</Label>
-              <div className="relative mb-2">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
                 <Input
                   placeholder="Rechercher un produit..."
                   value={productSearch}
@@ -506,32 +499,56 @@ export default function Sales() {
                   className="pl-9"
                 />
               </div>
-              <Select
-                value={formData.productId}
-                onValueChange={(value) => {
-                  const product = products.find(p => p.id === value);
-                  setFormData({ 
-                    ...formData, 
-                    productId: value,
-                    salePrice: product?.purchasePrice || 0,
-                  });
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner un produit" />
-                </SelectTrigger>
-                <SelectContent>
-                  {products
-                    .filter(p => p.quantity > 0)
-                    .filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()))
-                    .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
-                    .map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        {product.name} ({product.quantity} {product.unit}(s) disponibles)
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+              
+              {/* Liste des produits avec aperçu */}
+              <div className="max-h-48 overflow-y-auto rounded-lg border bg-background">
+                {products
+                  .filter(p => p.quantity > 0)
+                  .filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()))
+                  .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+                  .length === 0 ? (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      Aucun produit trouvé
+                    </div>
+                  ) : (
+                    products
+                      .filter(p => p.quantity > 0)
+                      .filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()))
+                      .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+                      .map((product) => (
+                        <div
+                          key={product.id}
+                          onClick={() => {
+                            setFormData({ 
+                              ...formData, 
+                              productId: product.id,
+                              salePrice: product.purchasePrice || 0,
+                            });
+                            setProductSearch(product.name);
+                          }}
+                          className={cn(
+                            "flex items-center gap-3 p-3 cursor-pointer transition-colors hover:bg-secondary/50 border-b last:border-b-0",
+                            formData.productId === product.id && "bg-primary/10 border-primary/20"
+                          )}
+                        >
+                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary font-semibold">
+                            {product.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-foreground truncate">{product.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {product.quantity} {product.unit}(s) disponibles • {formatCurrency(product.purchasePrice)}
+                            </p>
+                          </div>
+                          {formData.productId === product.id && (
+                            <Badge variant="default" className="bg-primary text-primary-foreground">
+                              Sélectionné
+                            </Badge>
+                          )}
+                        </div>
+                      ))
+                  )}
+              </div>
             </div>
 
             {selectedProduct && (
