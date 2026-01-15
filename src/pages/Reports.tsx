@@ -120,7 +120,7 @@ export default function Reports() {
           const cat = categories.find(c => c.id === p.categoryId);
           content += `\n${p.name}\n`;
           content += `  Catégorie: ${cat?.name || 'Sans catégorie'}\n`;
-          content += `  Prix d'achat: ${formatCurrency(p.purchasePrice)}\n`;
+          content += `  Prix d achat: ${formatCurrency(p.purchasePrice)}\n`;
           content += `  Quantité: ${p.quantity} ${p.unit}(s)\n`;
           content += `  Stock min: ${p.minStock}\n`;
           content += `  Statut: ${p.quantity === 0 ? 'RUPTURE' : p.quantity <= p.minStock ? 'FAIBLE' : 'OK'}\n`;
@@ -136,7 +136,7 @@ export default function Reports() {
           const product = products.find(p => p.id === sale.productId);
           const margin = product ? ((sale.unitPrice - product.purchasePrice) / product.purchasePrice * 100).toFixed(1) : '0';
           content += `\n${product?.name || 'Produit supprimé'}\n`;
-          content += `  Prix d'achat: ${formatCurrency(product?.purchasePrice || 0)}\n`;
+          content += `  Prix d achat: ${formatCurrency(product?.purchasePrice || 0)}\n`;
           content += `  Prix de vente: ${formatCurrency(sale.unitPrice)}\n`;
           content += `  Marge: ${margin}%\n`;
           content += `  Bénéfice: ${formatCurrency(sale.profit)}\n`;
@@ -155,62 +155,113 @@ export default function Reports() {
     const date = format(new Date(), 'dd MMMM yyyy', { locale: fr });
     const periodName = periods.find(p => p.id === selectedPeriod)?.name || '';
     const reportTypeName = reportTypes.find(r => r.id === type)?.name || '';
+    const reportColor = type === 'sales' ? [59, 130, 246] : type === 'financial' ? [34, 197, 94] : type === 'stock' ? [234, 179, 8] : [168, 85, 247];
 
-    // Header
-    doc.setFontSize(20);
-    doc.setTextColor(40, 40, 40);
-    doc.text('SALLEN TRADING AND SERVICE', 105, 20, { align: 'center' });
+    // Header with gradient effect
+    doc.setFillColor(reportColor[0], reportColor[1], reportColor[2]);
+    doc.rect(0, 0, 210, 45, 'F');
     
-    doc.setFontSize(16);
-    doc.setTextColor(60, 60, 60);
-    doc.text(reportTypeName.toUpperCase(), 105, 32, { align: 'center' });
-
+    doc.setFontSize(24);
+    doc.setTextColor(255, 255, 255);
+    doc.text('SALLEN TRADING AND SERVICE', 105, 18, { align: 'center' });
+    
+    doc.setFontSize(14);
+    doc.text(reportTypeName.toUpperCase(), 105, 30, { align: 'center' });
+    
     doc.setFontSize(10);
-    doc.setTextColor(100, 100, 100);
-    doc.text(`Date: ${date}`, 14, 45);
-    doc.text(`Période: ${periodName}`, 14, 52);
-    doc.text(`Généré par: ${currentUser?.name || 'Inconnu'}`, 14, 59);
+    doc.text(`${periodName} - ${date}`, 105, 40, { align: 'center' });
 
-    doc.setDrawColor(200, 200, 200);
-    doc.line(14, 65, 196, 65);
+    // Info box
+    doc.setFillColor(245, 245, 245);
+    doc.roundedRect(14, 50, 182, 18, 3, 3, 'F');
+    
+    doc.setFontSize(9);
+    doc.setTextColor(80, 80, 80);
+    doc.text(`Date de generation: ${date}`, 20, 58);
+    doc.text(`Periode: ${periodName}`, 90, 58);
+    doc.text(`Genere par: ${currentUser?.name || 'Inconnu'}`, 150, 58);
 
-    let yPosition = 75;
+    let yPosition = 78;
 
     switch (type) {
       case 'sales':
         if (sales.length === 0) {
           doc.setFontSize(12);
-          doc.text('Aucune vente enregistrée', 105, yPosition, { align: 'center' });
+          doc.setTextColor(100, 100, 100);
+          doc.text('Aucune vente enregistree', 105, yPosition, { align: 'center' });
         } else {
           const salesData = sales.map(sale => {
             const product = products.find(p => p.id === sale.productId);
             return [
-              product?.name || 'Produit supprimé',
+              product?.name || 'Produit supprime',
               sale.quantity.toString(),
               formatCurrency(sale.unitPrice),
               formatCurrency(sale.totalAmount),
               formatCurrency(sale.profit),
-              sale.status === 'completed' ? 'Complétée' : 'Annulée'
+              sale.status === 'completed' ? 'Completee' : 'Annulee'
             ];
           });
 
           autoTable(doc, {
             startY: yPosition,
-            head: [['Produit', 'Qté', 'Prix Unit.', 'Total', 'Bénéfice', 'Statut']],
+            head: [['Produit', 'Qte', 'Prix Unit.', 'Total', 'Benefice', 'Statut']],
             body: salesData,
-            theme: 'striped',
-            headStyles: { fillColor: [59, 130, 246], textColor: 255 },
-            styles: { fontSize: 9 },
+            theme: 'grid',
+            headStyles: { 
+              fillColor: [59, 130, 246], 
+              textColor: 255,
+              fontStyle: 'bold',
+              halign: 'center'
+            },
+            styles: { 
+              fontSize: 9,
+              cellPadding: 4
+            },
+            alternateRowStyles: {
+              fillColor: [240, 248, 255]
+            },
+            columnStyles: {
+              0: { halign: 'left' },
+              1: { halign: 'center' },
+              2: { halign: 'right' },
+              3: { halign: 'right' },
+              4: { halign: 'right' },
+              5: { halign: 'center' }
+            },
+            didParseCell: (data) => {
+              if (data.section === 'body' && data.column.index === 5) {
+                const status = data.cell.text[0];
+                if (status === 'Annulee') {
+                  data.cell.styles.textColor = [239, 68, 68];
+                  data.cell.styles.fontStyle = 'bold';
+                } else {
+                  data.cell.styles.textColor = [34, 197, 94];
+                }
+              }
+            }
           });
 
           const totalSales = sales.filter(s => s.status === 'completed').reduce((sum, s) => sum + s.totalAmount, 0);
           const totalProfit = sales.filter(s => s.status === 'completed').reduce((sum, s) => sum + s.profit, 0);
           
           const finalY = (doc as any).lastAutoTable.finalY + 10;
-          doc.setFontSize(12);
-          doc.setTextColor(40, 40, 40);
-          doc.text(`Total Ventes: ${formatCurrency(totalSales)}`, 14, finalY);
-          doc.text(`Total Bénéfices: ${formatCurrency(totalProfit)}`, 14, finalY + 8);
+          
+          // Summary box
+          doc.setFillColor(59, 130, 246);
+          doc.roundedRect(14, finalY, 88, 25, 3, 3, 'F');
+          doc.setFillColor(34, 197, 94);
+          doc.roundedRect(108, finalY, 88, 25, 3, 3, 'F');
+          
+          doc.setFontSize(10);
+          doc.setTextColor(255, 255, 255);
+          doc.text('TOTAL VENTES', 58, finalY + 10, { align: 'center' });
+          doc.setFontSize(14);
+          doc.text(formatCurrency(totalSales), 58, finalY + 20, { align: 'center' });
+          
+          doc.setFontSize(10);
+          doc.text('TOTAL BENEFICES', 152, finalY + 10, { align: 'center' });
+          doc.setFontSize(14);
+          doc.text(formatCurrency(totalProfit), 152, finalY + 20, { align: 'center' });
         }
         break;
 
@@ -220,107 +271,168 @@ export default function Reports() {
         const totalRevenue = incomes.reduce((sum, e) => sum + e.amount, 0);
         const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
 
-        doc.setFontSize(14);
-        doc.setTextColor(34, 197, 94);
-        doc.text('REVENUS', 14, yPosition);
+        // Revenus section
+        doc.setFillColor(34, 197, 94);
+        doc.roundedRect(14, yPosition - 5, 88, 10, 2, 2, 'F');
+        doc.setFontSize(11);
+        doc.setTextColor(255, 255, 255);
+        doc.text('REVENUS', 58, yPosition + 2, { align: 'center' });
 
         if (incomes.length > 0) {
           autoTable(doc, {
-            startY: yPosition + 5,
-            head: [['Catégorie', 'Description', 'Montant']],
+            startY: yPosition + 10,
+            head: [['Categorie', 'Description', 'Montant']],
             body: incomes.map(e => [e.category, e.description, formatCurrency(e.amount)]),
-            theme: 'striped',
-            headStyles: { fillColor: [34, 197, 94], textColor: 255 },
-            styles: { fontSize: 9 },
+            theme: 'grid',
+            headStyles: { fillColor: [34, 197, 94], textColor: 255, fontStyle: 'bold' },
+            styles: { fontSize: 9, cellPadding: 3 },
+            alternateRowStyles: { fillColor: [240, 255, 240] },
+            columnStyles: { 2: { halign: 'right' } }
           });
           yPosition = (doc as any).lastAutoTable.finalY + 15;
         } else {
-          yPosition += 15;
+          yPosition += 20;
           doc.setFontSize(10);
-          doc.setTextColor(100);
-          doc.text('Aucun revenu enregistré', 14, yPosition);
+          doc.setTextColor(100, 100, 100);
+          doc.text('Aucun revenu enregistre', 58, yPosition, { align: 'center' });
           yPosition += 15;
         }
 
-        doc.setFontSize(14);
-        doc.setTextColor(239, 68, 68);
-        doc.text('DÉPENSES', 14, yPosition);
+        // Depenses section
+        doc.setFillColor(239, 68, 68);
+        doc.roundedRect(14, yPosition - 5, 88, 10, 2, 2, 'F');
+        doc.setFontSize(11);
+        doc.setTextColor(255, 255, 255);
+        doc.text('DEPENSES', 58, yPosition + 2, { align: 'center' });
 
         if (expenses.length > 0) {
           autoTable(doc, {
-            startY: yPosition + 5,
-            head: [['Catégorie', 'Description', 'Montant']],
+            startY: yPosition + 10,
+            head: [['Categorie', 'Description', 'Montant']],
             body: expenses.map(e => [e.category, e.description, formatCurrency(e.amount)]),
-            theme: 'striped',
-            headStyles: { fillColor: [239, 68, 68], textColor: 255 },
-            styles: { fontSize: 9 },
+            theme: 'grid',
+            headStyles: { fillColor: [239, 68, 68], textColor: 255, fontStyle: 'bold' },
+            styles: { fontSize: 9, cellPadding: 3 },
+            alternateRowStyles: { fillColor: [255, 240, 240] },
+            columnStyles: { 2: { halign: 'right' } }
           });
           yPosition = (doc as any).lastAutoTable.finalY + 15;
         } else {
-          yPosition += 15;
+          yPosition += 20;
           doc.setFontSize(10);
-          doc.setTextColor(100);
-          doc.text('Aucune dépense enregistrée', 14, yPosition);
+          doc.setTextColor(100, 100, 100);
+          doc.text('Aucune depense enregistree', 58, yPosition, { align: 'center' });
           yPosition += 15;
         }
 
-        doc.setFontSize(12);
-        doc.setTextColor(40, 40, 40);
-        doc.text(`Total Revenus: ${formatCurrency(totalRevenue)}`, 14, yPosition);
-        doc.text(`Total Dépenses: ${formatCurrency(totalExpenses)}`, 14, yPosition + 8);
-        doc.setFontSize(14);
-        doc.setTextColor(totalRevenue - totalExpenses >= 0 ? 34 : 239, totalRevenue - totalExpenses >= 0 ? 197 : 68, totalRevenue - totalExpenses >= 0 ? 94 : 68);
-        doc.text(`SOLDE: ${formatCurrency(totalRevenue - totalExpenses)}`, 14, yPosition + 20);
+        // Summary boxes
+        const balance = totalRevenue - totalExpenses;
+        doc.setFillColor(34, 197, 94);
+        doc.roundedRect(14, yPosition, 58, 22, 3, 3, 'F');
+        doc.setFillColor(239, 68, 68);
+        doc.roundedRect(76, yPosition, 58, 22, 3, 3, 'F');
+        doc.setFillColor(balance >= 0 ? 34 : 239, balance >= 0 ? 197 : 68, balance >= 0 ? 94 : 68);
+        doc.roundedRect(138, yPosition, 58, 22, 3, 3, 'F');
+        
+        doc.setFontSize(8);
+        doc.setTextColor(255, 255, 255);
+        doc.text('Revenus', 43, yPosition + 8, { align: 'center' });
+        doc.text('Depenses', 105, yPosition + 8, { align: 'center' });
+        doc.text('Solde', 167, yPosition + 8, { align: 'center' });
+        
+        doc.setFontSize(11);
+        doc.text(formatCurrency(totalRevenue), 43, yPosition + 17, { align: 'center' });
+        doc.text(formatCurrency(totalExpenses), 105, yPosition + 17, { align: 'center' });
+        doc.text(formatCurrency(balance), 167, yPosition + 17, { align: 'center' });
         break;
 
       case 'stock':
         if (products.length === 0) {
           doc.setFontSize(12);
-          doc.text('Aucun produit enregistré', 105, yPosition, { align: 'center' });
+          doc.setTextColor(100, 100, 100);
+          doc.text('Aucun produit enregistre', 105, yPosition, { align: 'center' });
         } else {
-          const stockData = products.map(p => {
-            const cat = categories.find(c => c.id === p.categoryId);
-            const status = p.quantity === 0 ? 'RUPTURE' : p.quantity <= p.minStock ? 'FAIBLE' : 'OK';
-            return [
-              p.name,
-              cat?.name || 'Sans catégorie',
-              formatCurrency(p.purchasePrice),
-              `${p.quantity} ${p.unit}(s)`,
-              p.minStock.toString(),
-              status
-            ];
-          });
+          const stockData = products
+            .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+            .map(p => {
+              const cat = categories.find(c => c.id === p.categoryId);
+              const status = p.quantity === 0 ? 'RUPTURE' : p.quantity <= p.minStock ? 'FAIBLE' : 'OK';
+              return [
+                p.name,
+                cat?.name || 'Sans categorie',
+                formatCurrency(p.purchasePrice),
+                `${p.quantity} ${p.unit}(s)`,
+                p.minStock.toString(),
+                status
+              ];
+            });
 
           autoTable(doc, {
             startY: yPosition,
-            head: [['Produit', 'Catégorie', 'Prix Achat', 'Quantité', 'Stock Min', 'Statut']],
+            head: [['Produit', 'Categorie', 'Prix Achat', 'Quantite', 'Min', 'Statut']],
             body: stockData,
-            theme: 'striped',
-            headStyles: { fillColor: [234, 179, 8], textColor: 40 },
-            styles: { fontSize: 9 },
-            bodyStyles: { textColor: 40 },
+            theme: 'grid',
+            headStyles: { 
+              fillColor: [234, 179, 8], 
+              textColor: [40, 40, 40],
+              fontStyle: 'bold',
+              halign: 'center'
+            },
+            styles: { fontSize: 9, cellPadding: 4 },
+            alternateRowStyles: { fillColor: [255, 252, 235] },
+            columnStyles: {
+              2: { halign: 'right' },
+              3: { halign: 'center' },
+              4: { halign: 'center' },
+              5: { halign: 'center' }
+            },
             didParseCell: (data) => {
               if (data.section === 'body' && data.column.index === 5) {
                 const status = data.cell.text[0];
                 if (status === 'RUPTURE') {
                   data.cell.styles.textColor = [239, 68, 68];
                   data.cell.styles.fontStyle = 'bold';
+                  data.cell.styles.fillColor = [254, 226, 226];
                 } else if (status === 'FAIBLE') {
                   data.cell.styles.textColor = [234, 179, 8];
                   data.cell.styles.fontStyle = 'bold';
+                  data.cell.styles.fillColor = [254, 249, 195];
                 } else {
                   data.cell.styles.textColor = [34, 197, 94];
+                  data.cell.styles.fillColor = [220, 252, 231];
                 }
               }
             }
           });
 
           const totalStockValue = products.reduce((sum, p) => sum + (p.purchasePrice * p.quantity), 0);
+          const lowStock = products.filter(p => p.quantity > 0 && p.quantity <= p.minStock).length;
+          const outOfStock = products.filter(p => p.quantity === 0).length;
           const finalY = (doc as any).lastAutoTable.finalY + 10;
-          doc.setFontSize(12);
-          doc.setTextColor(40, 40, 40);
-          doc.text(`Total produits: ${products.length}`, 14, finalY);
-          doc.text(`Valeur du stock: ${formatCurrency(totalStockValue)}`, 14, finalY + 8);
+          
+          // Stats boxes
+          doc.setFillColor(59, 130, 246);
+          doc.roundedRect(14, finalY, 44, 22, 3, 3, 'F');
+          doc.setFillColor(234, 179, 8);
+          doc.roundedRect(62, finalY, 44, 22, 3, 3, 'F');
+          doc.setFillColor(239, 68, 68);
+          doc.roundedRect(110, finalY, 44, 22, 3, 3, 'F');
+          doc.setFillColor(34, 197, 94);
+          doc.roundedRect(158, finalY, 38, 22, 3, 3, 'F');
+          
+          doc.setFontSize(8);
+          doc.setTextColor(255, 255, 255);
+          doc.text('Produits', 36, finalY + 8, { align: 'center' });
+          doc.text('Stock faible', 84, finalY + 8, { align: 'center' });
+          doc.text('Rupture', 132, finalY + 8, { align: 'center' });
+          doc.text('Valeur', 177, finalY + 8, { align: 'center' });
+          
+          doc.setFontSize(11);
+          doc.text(products.length.toString(), 36, finalY + 17, { align: 'center' });
+          doc.text(lowStock.toString(), 84, finalY + 17, { align: 'center' });
+          doc.text(outOfStock.toString(), 132, finalY + 17, { align: 'center' });
+          doc.setFontSize(9);
+          doc.text(formatCurrency(totalStockValue), 177, finalY + 17, { align: 'center' });
         }
         break;
 
@@ -328,13 +440,16 @@ export default function Reports() {
         const completedSales = sales.filter(s => s.status === 'completed');
         if (completedSales.length === 0) {
           doc.setFontSize(12);
-          doc.text('Aucune vente complétée', 105, yPosition, { align: 'center' });
+          doc.setTextColor(100, 100, 100);
+          doc.text('Aucune vente completee', 105, yPosition, { align: 'center' });
         } else {
           const profitData = completedSales.map(sale => {
             const product = products.find(p => p.id === sale.productId);
-            const margin = product ? ((sale.unitPrice - product.purchasePrice) / product.purchasePrice * 100).toFixed(1) : '0';
+            const margin = product && product.purchasePrice > 0 
+              ? ((sale.unitPrice - product.purchasePrice) / product.purchasePrice * 100).toFixed(1) 
+              : '0';
             return [
-              product?.name || 'Produit supprimé',
+              product?.name || 'Produit supprime',
               formatCurrency(product?.purchasePrice || 0),
               formatCurrency(sale.unitPrice),
               `${margin}%`,
@@ -344,27 +459,75 @@ export default function Reports() {
 
           autoTable(doc, {
             startY: yPosition,
-            head: [['Produit', 'Prix Achat', 'Prix Vente', 'Marge', 'Bénéfice']],
+            head: [['Produit', 'Prix Achat', 'Prix Vente', 'Marge', 'Benefice']],
             body: profitData,
-            theme: 'striped',
-            headStyles: { fillColor: [168, 85, 247], textColor: 255 },
-            styles: { fontSize: 9 },
+            theme: 'grid',
+            headStyles: { 
+              fillColor: [168, 85, 247], 
+              textColor: 255,
+              fontStyle: 'bold',
+              halign: 'center'
+            },
+            styles: { fontSize: 9, cellPadding: 4 },
+            alternateRowStyles: { fillColor: [250, 245, 255] },
+            columnStyles: {
+              1: { halign: 'right' },
+              2: { halign: 'right' },
+              3: { halign: 'center' },
+              4: { halign: 'right' }
+            },
+            didParseCell: (data) => {
+              if (data.section === 'body' && data.column.index === 4) {
+                const value = parseFloat(data.cell.text[0].replace(/[^\d.-]/g, ''));
+                if (value > 0) {
+                  data.cell.styles.textColor = [34, 197, 94];
+                  data.cell.styles.fontStyle = 'bold';
+                } else if (value < 0) {
+                  data.cell.styles.textColor = [239, 68, 68];
+                  data.cell.styles.fontStyle = 'bold';
+                }
+              }
+            }
           });
 
           const totalProfit = completedSales.reduce((sum, s) => sum + s.profit, 0);
+          const avgMargin = completedSales.reduce((sum, s) => {
+            const product = products.find(p => p.id === s.productId);
+            if (product && product.purchasePrice > 0) {
+              return sum + ((s.unitPrice - product.purchasePrice) / product.purchasePrice * 100);
+            }
+            return sum;
+          }, 0) / completedSales.length;
+          
           const finalY = (doc as any).lastAutoTable.finalY + 10;
-          doc.setFontSize(14);
-          doc.setTextColor(168, 85, 247);
-          doc.text(`BÉNÉFICE TOTAL: ${formatCurrency(totalProfit)}`, 14, finalY);
+          
+          // Profit summary
+          doc.setFillColor(168, 85, 247);
+          doc.roundedRect(14, finalY, 88, 28, 3, 3, 'F');
+          doc.setFillColor(59, 130, 246);
+          doc.roundedRect(108, finalY, 88, 28, 3, 3, 'F');
+          
+          doc.setFontSize(10);
+          doc.setTextColor(255, 255, 255);
+          doc.text('BENEFICE TOTAL', 58, finalY + 10, { align: 'center' });
+          doc.setFontSize(16);
+          doc.text(formatCurrency(totalProfit), 58, finalY + 22, { align: 'center' });
+          
+          doc.setFontSize(10);
+          doc.text('MARGE MOYENNE', 152, finalY + 10, { align: 'center' });
+          doc.setFontSize(16);
+          doc.text(`${avgMargin.toFixed(1)}%`, 152, finalY + 22, { align: 'center' });
         }
         break;
     }
 
     // Footer
     const pageHeight = doc.internal.pageSize.height;
+    doc.setFillColor(240, 240, 240);
+    doc.rect(0, pageHeight - 15, 210, 15, 'F');
     doc.setFontSize(8);
-    doc.setTextColor(150, 150, 150);
-    doc.text('Sallen Trading And Service - Rapport généré automatiquement', 105, pageHeight - 10, { align: 'center' });
+    doc.setTextColor(100, 100, 100);
+    doc.text('Sallen Trading And Service - Rapport genere automatiquement', 105, pageHeight - 6, { align: 'center' });
 
     return doc;
   };

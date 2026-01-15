@@ -7,9 +7,10 @@ import { RecentSales } from '@/components/dashboard/RecentSales';
 import { useProducts } from '@/contexts/ProductContext';
 import { useSales } from '@/contexts/SalesContext';
 import { useFinances } from '@/contexts/FinanceContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency } from '@/lib/currency';
 import { motion } from 'framer-motion';
-import { Package, TrendingUp, TrendingDown, ShoppingCart, AlertTriangle, Activity } from 'lucide-react';
+import { Package, TrendingUp, TrendingDown, ShoppingCart, AlertTriangle, Activity, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Dashboard() {
@@ -17,6 +18,8 @@ export default function Dashboard() {
   const { products } = useProducts();
   const { sales } = useSales();
   const { entries } = useFinances();
+  const { currentUser } = useAuth();
+  const isAdmin = currentUser?.role === 'admin';
 
   const totalProducts = products.length;
   const lowStockProducts = products.filter(p => p.quantity > 0 && p.quantity <= p.minStock).length;
@@ -42,7 +45,11 @@ export default function Dashboard() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard title="Valeur du stock" value={formatCurrency(totalStockValue)} icon={Package} trend={{ value: 12, isPositive: true }} variant="primary" index={0} />
           <StatCard title="Ventes totales" value={formatCurrency(todaySales)} icon={ShoppingCart} trend={{ value: 8, isPositive: true }} variant="success" index={1} />
-          <StatCard title="Bénéfice net" value={formatCurrency(netProfit)} icon={netProfit >= 0 ? TrendingUp : TrendingDown} trend={{ value: 15, isPositive: netProfit >= 0 }} variant={netProfit >= 0 ? 'success' : 'danger'} index={2} />
+          {isAdmin ? (
+            <StatCard title="Bénéfice net" value={formatCurrency(netProfit)} icon={netProfit >= 0 ? TrendingUp : TrendingDown} trend={{ value: 15, isPositive: netProfit >= 0 }} variant={netProfit >= 0 ? 'success' : 'danger'} index={2} />
+          ) : (
+            <StatCard title="Bénéfice net" value="Accès restreint" icon={Lock} variant="default" index={2} />
+          )}
           <StatCard title="Alertes stock" value={lowStockProducts + outOfStockProducts} icon={AlertTriangle} variant={lowStockProducts + outOfStockProducts > 0 ? 'warning' : 'default'} index={3} onClick={() => navigate('/products?filter=lowstock')} />
         </div>
 

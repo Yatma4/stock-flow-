@@ -31,6 +31,7 @@ import {
   Save,
   Monitor,
   Trash2,
+  KeyRound,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -38,6 +39,8 @@ import { useAuth } from '@/contexts/AuthContext';
 const SETTINGS_KEY = 'app_settings';
 const DELETE_PASSWORD_KEY = 'app_delete_password';
 const DEFAULT_DELETE_PASSWORD = 'SUPPRIMER2024';
+const RECOVERY_KEY = 'app_recovery_question';
+const DEFAULT_RECOVERY = { question: 'Quel est le nom de votre première entreprise ?', answer: 'sallen' };
 
 interface AppSettings {
   company: {
@@ -83,6 +86,7 @@ export default function Settings() {
   const [isSessionsOpen, setIsSessionsOpen] = useState(false);
   const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [isRecoverySettingsOpen, setIsRecoverySettingsOpen] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [deletePasswordError, setDeletePasswordError] = useState('');
   const [currentDeletePassword, setCurrentDeletePassword] = useState('');
@@ -90,6 +94,11 @@ export default function Settings() {
   const [confirmNewDeletePassword, setConfirmNewDeletePassword] = useState('');
   const [changePasswordError, setChangePasswordError] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
+  
+  // Recovery question state
+  const [recoveryQuestion, setRecoveryQuestion] = useState('');
+  const [recoveryAnswer, setRecoveryAnswer] = useState('');
+  const [recoveryError, setRecoveryError] = useState('');
 
   // Track changes
   useEffect(() => {
@@ -115,6 +124,11 @@ export default function Settings() {
 
   const getDeletePassword = () => {
     return localStorage.getItem(DELETE_PASSWORD_KEY) || DEFAULT_DELETE_PASSWORD;
+  };
+
+  const getRecovery = () => {
+    const stored = localStorage.getItem(RECOVERY_KEY);
+    return stored ? JSON.parse(stored) : DEFAULT_RECOVERY;
   };
 
   const handleDeleteAllData = () => {
@@ -182,6 +196,31 @@ export default function Settings() {
     setDeletePassword('');
     setDeletePasswordError('');
     setIsDeleteAllOpen(true);
+  };
+
+  const openRecoverySettings = () => {
+    const current = getRecovery();
+    setRecoveryQuestion(current.question);
+    setRecoveryAnswer('');
+    setRecoveryError('');
+    setIsRecoverySettingsOpen(true);
+  };
+
+  const handleSaveRecovery = () => {
+    if (!recoveryQuestion.trim()) {
+      setRecoveryError('Veuillez entrer une question');
+      return;
+    }
+    if (!recoveryAnswer.trim()) {
+      setRecoveryError('Veuillez entrer une réponse');
+      return;
+    }
+    localStorage.setItem(RECOVERY_KEY, JSON.stringify({
+      question: recoveryQuestion.trim(),
+      answer: recoveryAnswer.trim().toLowerCase()
+    }));
+    setIsRecoverySettingsOpen(false);
+    toast.success('Question de récupération mise à jour');
   };
 
   const updateCompany = (field: keyof AppSettings['company'], value: string) => {
@@ -381,6 +420,23 @@ export default function Settings() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
+                  <p className="font-medium text-foreground">Question de récupération</p>
+                  <p className="text-sm text-muted-foreground">
+                    Configurez une question pour récupérer le code d'accès en cas d'oubli
+                  </p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={openRecoverySettings}
+                >
+                  <KeyRound className="mr-2 h-4 w-4" />
+                  Configurer
+                </Button>
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
                   <p className="font-medium text-foreground">Mot de passe de suppression</p>
                   <p className="text-sm text-muted-foreground">
                     Modifiez le mot de passe spécial requis pour supprimer les données
@@ -578,6 +634,58 @@ export default function Settings() {
               Annuler
             </Button>
             <Button onClick={handleChangeDeletePassword}>
+              Enregistrer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Recovery Question Settings Dialog */}
+      <Dialog open={isRecoverySettingsOpen} onOpenChange={setIsRecoverySettingsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Question de récupération</DialogTitle>
+            <DialogDescription>
+              Cette question sera utilisée pour récupérer le code d'accès administrateur en cas d'oubli.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="recovery-question">Question de sécurité</Label>
+              <Input
+                id="recovery-question"
+                placeholder="Ex: Quel est le nom de votre animal ?"
+                value={recoveryQuestion}
+                onChange={(e) => {
+                  setRecoveryQuestion(e.target.value);
+                  setRecoveryError('');
+                }}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="recovery-answer">Réponse secrète</Label>
+              <Input
+                id="recovery-answer"
+                placeholder="Entrez la réponse"
+                value={recoveryAnswer}
+                onChange={(e) => {
+                  setRecoveryAnswer(e.target.value);
+                  setRecoveryError('');
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                La réponse n'est pas sensible à la casse.
+              </p>
+            </div>
+            {recoveryError && (
+              <p className="text-sm text-destructive">{recoveryError}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsRecoverySettingsOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={handleSaveRecovery}>
               Enregistrer
             </Button>
           </DialogFooter>

@@ -91,16 +91,18 @@ export default function Products() {
     }
   }, [searchParams, setSearchParams]);
 
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch = product.name
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
-    const matchesCategory =
-      categoryFilter === 'all' || product.categoryId === categoryFilter;
-    const matchesStock = stockFilter === 'all' || 
-      (stockFilter === 'lowstock' && (product.quantity === 0 || product.quantity <= product.minStock));
-    return matchesSearch && matchesCategory && matchesStock;
-  });
+  const filteredProducts = products
+    .filter((product) => {
+      const matchesSearch = product.name
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase());
+      const matchesCategory =
+        categoryFilter === 'all' || product.categoryId === categoryFilter;
+      const matchesStock = stockFilter === 'all' || 
+        (stockFilter === 'lowstock' && (product.quantity === 0 || product.quantity <= product.minStock));
+      return matchesSearch && matchesCategory && matchesStock;
+    })
+    .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
 
   const getStockStatus = (quantity: number, minStock: number) => {
     if (quantity === 0) return { label: 'Rupture', variant: 'destructive' as const };
