@@ -61,6 +61,7 @@ export default function Sales() {
     quantity: 1,
     salePrice: 0,
   });
+  const [productSearch, setProductSearch] = useState('');
   const { addNotification } = useNotifications();
   const { currentUser } = useAuth();
   const isAdmin = currentUser?.role === 'admin';
@@ -120,7 +121,8 @@ export default function Sales() {
   const calculatedTotal = formData.salePrice * formData.quantity;
 
   const handleAdd = () => {
-    setFormData({ productId: products[0]?.id || '', quantity: 1, salePrice: 0 });
+    setFormData({ productId: '', quantity: 1, salePrice: 0 });
+    setProductSearch('');
     setIsAddOpen(true);
   };
 
@@ -256,17 +258,19 @@ export default function Sales() {
               </div>
             </div>
           </Card>
-          <Card className="p-5 shadow-card">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-success/10">
-                <TrendingUp className="h-6 w-6 text-success" />
+          {isAdmin && (
+            <Card className="p-5 shadow-card">
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-success/10">
+                  <TrendingUp className="h-6 w-6 text-success" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Bénéfice total</p>
+                  <p className="text-2xl font-bold text-success">{formatCurrency(totalProfit)}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Bénéfice total</p>
-                <p className="text-2xl font-bold text-success">{formatCurrency(totalProfit)}</p>
-              </div>
-            </div>
-          </Card>
+            </Card>
+          )}
           <Card className="p-5 shadow-card">
             <div className="flex items-center gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-warning/10">
@@ -366,7 +370,7 @@ export default function Sales() {
                 <TableHead className="font-semibold text-right">Quantité</TableHead>
                 <TableHead className="font-semibold text-right">Prix unitaire</TableHead>
                 <TableHead className="font-semibold text-right">Total</TableHead>
-                <TableHead className="font-semibold text-right">Bénéfice</TableHead>
+                {isAdmin && <TableHead className="font-semibold text-right">Bénéfice</TableHead>}
                 <TableHead className="font-semibold">Statut</TableHead>
                 <TableHead className="font-semibold text-right">Actions</TableHead>
               </TableRow>
@@ -374,7 +378,7 @@ export default function Sales() {
             <TableBody>
               {filteredSales.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={isAdmin ? 9 : 8} className="text-center py-8 text-muted-foreground">
                     Aucune vente trouvée. Enregistrez votre première vente !
                   </TableCell>
                 </TableRow>
@@ -418,16 +422,18 @@ export default function Sales() {
                     <TableCell className="text-right font-semibold text-foreground">
                       {formatCurrency(sale.totalAmount)}
                     </TableCell>
-                    <TableCell className="text-right">
-                      <span className={cn(
-                        'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border',
-                        sale.status === 'completed' 
-                          ? 'bg-success/10 text-success border-success/30'
-                          : 'bg-muted text-muted-foreground border-muted'
-                      )}>
-                        {sale.status === 'completed' ? `+${formatCurrency(sale.profit)}` : '-'}
-                      </span>
-                    </TableCell>
+                    {isAdmin && (
+                      <TableCell className="text-right">
+                        <span className={cn(
+                          'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border',
+                          sale.status === 'completed' 
+                            ? 'bg-success/10 text-success border-success/30'
+                            : 'bg-muted text-muted-foreground border-muted'
+                        )}>
+                          {sale.status === 'completed' ? `+${formatCurrency(sale.profit)}` : '-'}
+                        </span>
+                      </TableCell>
+                    )}
                     <TableCell>
                       {sale.status === 'completed' ? (
                         <Badge variant="default" className="bg-success/20 text-success border-success/30">
@@ -491,6 +497,15 @@ export default function Sales() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Produit</Label>
+              <div className="relative mb-2">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Rechercher un produit..."
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
               <Select
                 value={formData.productId}
                 onValueChange={(value) => {
@@ -506,11 +521,15 @@ export default function Sales() {
                   <SelectValue placeholder="Sélectionner un produit" />
                 </SelectTrigger>
                 <SelectContent>
-                  {products.filter(p => p.quantity > 0).map((product) => (
-                    <SelectItem key={product.id} value={product.id}>
-                      {product.name} ({product.quantity} {product.unit}(s) disponibles)
-                    </SelectItem>
-                  ))}
+                  {products
+                    .filter(p => p.quantity > 0)
+                    .filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()))
+                    .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+                    .map((product) => (
+                      <SelectItem key={product.id} value={product.id}>
+                        {product.name} ({product.quantity} {product.unit}(s) disponibles)
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
@@ -547,10 +566,14 @@ export default function Sales() {
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <span className="text-muted-foreground">Total vente:</span>
                   <span className="font-semibold text-right">{formatCurrency(calculatedTotal)}</span>
-                  <span className="text-muted-foreground">Bénéfice:</span>
-                  <span className={cn("font-semibold text-right", calculatedProfit >= 0 ? "text-success" : "text-destructive")}>
-                    {calculatedProfit >= 0 ? '+' : ''}{formatCurrency(calculatedProfit)}
-                  </span>
+                  {isAdmin && (
+                    <>
+                      <span className="text-muted-foreground">Bénéfice:</span>
+                      <span className={cn("font-semibold text-right", calculatedProfit >= 0 ? "text-success" : "text-destructive")}>
+                        {calculatedProfit >= 0 ? '+' : ''}{formatCurrency(calculatedProfit)}
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
             )}
