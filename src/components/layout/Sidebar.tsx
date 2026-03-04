@@ -19,6 +19,7 @@ const navigation = [
   { name: 'Tableau de bord', href: '/', icon: LayoutDashboard, adminOnly: true },
   { name: 'Produits', href: '/products', icon: Package, adminOnly: true },
   { name: 'Ventes', href: '/sales', icon: ShoppingCart, adminOnly: false },
+  { name: 'Devis', href: '/quotes', icon: FileText, adminOnly: false },
   { name: 'Finances', href: '/finances', icon: Wallet, adminOnly: true },
   { name: 'Rapports', href: '/reports', icon: FileText, adminOnly: true },
   { name: 'Utilisateurs', href: '/users', icon: Users, adminOnly: true },
