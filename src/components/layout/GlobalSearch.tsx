@@ -36,7 +36,6 @@ export function GlobalSearch() {
     const results: SearchResult[] = [];
     const q = query.toLowerCase();
 
-    // Produits triés alphabétiquement
     [...products]
       .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
       .forEach(product => {
@@ -52,7 +51,6 @@ export function GlobalSearch() {
         }
       });
 
-    // Catégories triées alphabétiquement
     [...categories]
       .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
       .forEach(category => {
@@ -68,25 +66,18 @@ export function GlobalSearch() {
         }
       });
 
-    // Ventes triées par nom de produit alphabétiquement
-    [...sales]
-      .sort((a, b) => {
-        const productA = products.find(p => p.id === a.productId);
-        const productB = products.find(p => p.id === b.productId);
-        return (productA?.name || '').localeCompare(productB?.name || '', 'fr');
-      })
-      .forEach(sale => {
-        const product = products.find(p => p.id === sale.productId);
-        if (product?.name.toLowerCase().includes(q)) {
-          results.push({
-            type: 'sale',
-            id: sale.id,
-            title: `Vente: ${product.name}`,
-            subtitle: `${sale.quantity} × ${formatCurrency(sale.unitPrice)}`,
-            link: '/sales',
-          });
-        }
-      });
+    sales.forEach(sale => {
+      const firstItem = sale.items[0];
+      if (firstItem && firstItem.productName.toLowerCase().includes(q)) {
+        results.push({
+          type: 'sale',
+          id: sale.id,
+          title: `Vente: ${firstItem.productName}${sale.items.length > 1 ? ` +${sale.items.length - 1}` : ''}`,
+          subtitle: `${formatCurrency(sale.totalAmount)}`,
+          link: '/sales',
+        });
+      }
+    });
 
     return results.slice(0, 10);
   }, [query, categories, products, sales]);
@@ -126,9 +117,7 @@ export function GlobalSearch() {
           <Command>
             <CommandList>
               {searchResults.length === 0 ? (
-                <CommandEmpty>
-                  Aucun résultat trouvé
-                </CommandEmpty>
+                <CommandEmpty>Aucun résultat trouvé</CommandEmpty>
               ) : (
                 <CommandGroup heading="Résultats">
                   {searchResults.map((result) => {
