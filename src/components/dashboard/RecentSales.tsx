@@ -1,12 +1,10 @@
 import { ArrowUpRight, ShoppingBag } from 'lucide-react';
 import { useSales } from '@/contexts/SalesContext';
-import { useProducts } from '@/contexts/ProductContext';
 import { formatCurrency } from '@/lib/currency';
 import { motion } from 'framer-motion';
 
 export function RecentSales() {
   const { sales } = useSales();
-  const { products } = useProducts();
   const recentSales = sales.slice(0, 5);
 
   if (recentSales.length === 0) {
@@ -48,22 +46,24 @@ export function RecentSales() {
 
       <div className="space-y-3">
         {recentSales.map((sale, index) => {
-          const product = products.find((p) => p.id === sale.productId);
+          const firstItem = sale.items[0];
+          const itemCount = sale.items.length;
+          const displayName = firstItem ? (itemCount > 1 ? `${firstItem.productName} +${itemCount - 1}` : firstItem.productName) : 'Vente';
           return (
             <motion.div key={sale.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.7 + index * 0.1 }} whileHover={{ x: 4, backgroundColor: 'hsl(210, 20%, 96%)', transition: { duration: 0.2 } }} className="flex items-center justify-between rounded-lg border border-transparent p-3 transition-all cursor-pointer">
               <div className="flex items-center gap-3">
                 <motion.div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary font-semibold" whileHover={{ scale: 1.1 }}>
-                  {product?.name.charAt(0) || '?'}
+                  {displayName.charAt(0)}
                 </motion.div>
                 <div>
-                  <p className="text-sm font-medium text-foreground">{product?.name || 'Produit supprimé'}</p>
-                  <p className="text-xs text-muted-foreground">{sale.quantity} × {formatCurrency(sale.unitPrice)}</p>
+                  <p className="text-sm font-medium text-foreground">{displayName}</p>
+                  <p className="text-xs text-muted-foreground">{sale.items.reduce((sum, i) => sum + i.quantity, 0)} article(s)</p>
                 </div>
               </div>
               <div className="text-right">
                 <p className="text-sm font-semibold text-foreground">{formatCurrency(sale.totalAmount)}</p>
                 <motion.p className="text-xs text-success font-medium" animate={{ opacity: [1, 0.6, 1] }} transition={{ duration: 2, repeat: Infinity }}>
-                  +{formatCurrency(sale.profit)} profit
+                  +{formatCurrency(sale.totalProfit)} profit
                 </motion.p>
               </div>
             </motion.div>

@@ -5,7 +5,6 @@ export interface Category {
   color: string;
 }
 
-// Product no longer has salePrice - price is negotiated during sale
 export interface Product {
   id: string;
   name: string;
@@ -18,13 +17,33 @@ export interface Product {
   updatedAt: Date;
 }
 
+export type PaymentMethod = 'cash' | 'mobile_money' | 'bank_transfer' | 'check';
+
+export const paymentMethodLabels: Record<PaymentMethod, string> = {
+  cash: 'Espèces',
+  mobile_money: 'Mobile Money',
+  bank_transfer: 'Virement bancaire',
+  check: 'Chèque',
+};
+
+export interface SaleItem {
+  id: string;
+  saleId: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  purchasePrice: number;
+  totalAmount: number;
+  profit: number;
+}
+
 export interface Sale {
   id: string;
-  productId: string;
-  quantity: number;
-  unitPrice: number; // This is the negotiated sale price
+  items: SaleItem[];
   totalAmount: number;
-  profit: number; // Calculated as (unitPrice - purchasePrice) * quantity
+  totalProfit: number;
+  paymentMethod: PaymentMethod;
   date: Date;
   employeeId: string;
   employeeName: string;
@@ -70,4 +89,42 @@ export interface Report {
   content: string;
   generatedAt: Date;
   generatedBy: string;
+}
+
+export type QuoteStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired';
+
+export const quoteStatusLabels: Record<QuoteStatus, string> = {
+  draft: 'Brouillon',
+  sent: 'Envoyé',
+  accepted: 'Accepté',
+  rejected: 'Rejeté',
+  expired: 'Expiré',
+};
+
+export interface QuoteItem {
+  id: string;
+  quoteId: string;
+  productId?: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  totalAmount: number;
+}
+
+export interface Quote {
+  id: string;
+  quoteNumber: string;
+  clientName: string;
+  clientPhone?: string;
+  clientEmail?: string;
+  clientAddress?: string;
+  items: QuoteItem[];
+  totalAmount: number;
+  status: QuoteStatus;
+  validUntil?: Date;
+  notes?: string;
+  createdBy: string;
+  date: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }

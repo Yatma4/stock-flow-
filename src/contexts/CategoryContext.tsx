@@ -1,47 +1,73 @@
-import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { Category } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
 
 interface CategoryContextType {
   categories: Category[];
   addCategory: (category: Category) => void;
   updateCategory: (id: string, data: Partial<Category>) => void;
   deleteCategory: (id: string) => void;
+  loading: boolean;
 }
 
 const CategoryContext = createContext<CategoryContextType | null>(null);
 
-const defaultCategories: Category[] = [
-  { id: '1', name: 'Électronique', description: 'Appareils électroniques et accessoires', color: '#2DD4BF' },
-  { id: '2', name: 'Vêtements', description: 'Mode et textile', color: '#60A5FA' },
-  { id: '3', name: 'Alimentation', description: 'Produits alimentaires', color: '#FBBF24' },
-  { id: '4', name: 'Maison', description: 'Équipements pour la maison', color: '#A78BFA' },
-  { id: '5', name: 'Beauté', description: 'Cosmétiques et soins', color: '#F472B6' },
-];
-
 export function CategoryProvider({ children }: { children: ReactNode }) {
-  const [categories, setCategories] = useState<Category[]>(() => {
-    const stored = localStorage.getItem('app_categories');
-    return stored ? JSON.parse(stored) : defaultCategories;
-  });
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchCategories = useCallback(async () => {
+    const { data, error } = await supabase.from('categories').select('*').order('name');
+    if (error) {
+      console.error('Error fetching categories:', error);
+      // Fallback to localStorage
+      const stored = localStorage.getItem('app_categories');
+      if (stored) setCategories(JSON.parse(stored));
+    } else {
+      const mapped = data.map(c => ({
+        id: c.id,
+        name: c.name,
+        description: c.description || undefined,
+        color: c.color,
+      }));
+      setCategories(mapped);
+    }
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem('app_categories', JSON.stringify(categories));
-  }, [categories]);
+    fetchCategories();
+  }, [fetchCategories]);
 
-  const addCategory = (category: Category) => {
+  const addCategory = async (category: Category) => {
     setCategories(prev => [...prev, category]);
+    const { error } = await supabase.from('categories').insert({
+      id: category.id,
+      name: category.name,
+      description: category.description || null,
+      color: category.color,
+    });
+    if (error) console.error('Error adding category:', error);
   };
 
-  const updateCategory = (id: string, data: Partial<Category>) => {
+  const updateCategory = async (id: string, data: Partial<Category>) => {
     setCategories(prev => prev.map(c => c.id === id ? { ...c, ...data } : c));
+    const { error } = await supabase.from('categories').update({
+      ...(data.name !== undefined && { name: data.name }),
+      ...(data.description !== undefined && { description: data.description || null }),
+      ...(data.color !== undefined && { color: data.color }),
+    }).eq('id', id);
+    if (error) console.error('Error updating category:', error);
   };
 
-  const deleteCategory = (id: string) => {
+  const deleteCategory = async (id: string) => {
     setCategories(prev => prev.filter(c => c.id !== id));
+    const { error } = await supabase.from('categories').delete().eq('id', id);
+    if (error) console.error('Error deleting category:', error);
   };
 
   return (
-    <CategoryContext.Provider value={{ categories, addCategory, updateCategory, deleteCategory }}>
+    <CategoryContext.Provider value={{ categories, addCategory, updateCategory, deleteCategory, loading }}>
       {children}
     </CategoryContext.Provider>
   );
