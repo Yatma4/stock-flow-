@@ -2,9 +2,9 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
-  FileText, Download, Calendar, TrendingUp, ShoppingCart, DollarSign, BarChart3, Loader2, History, Trash2, Eye,
+  FileText, Download, Calendar as CalendarIcon, TrendingUp, ShoppingCart, DollarSign, BarChart3, Loader2, History, Trash2, Eye,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
 import { useProducts } from '@/contexts/ProductContext';
 import { useSales } from '@/contexts/SalesContext';
@@ -13,7 +13,7 @@ import { useCategories } from '@/contexts/CategoryContext';
 import { useReports } from '@/contexts/ReportContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency, formatCurrencyPDF } from '@/lib/currency';
-import { format } from 'date-fns';
+import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, isWithinInterval } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
@@ -23,9 +23,13 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { paymentMethodLabels } from '@/types';
+import { paymentMethodLabels, Sale, FinancialEntry } from '@/types';
 
 const reportTypes = [
   { id: 'sales', name: 'Rapport des ventes', description: 'Détail de toutes les ventes réalisées', icon: ShoppingCart, color: 'text-primary', bgColor: 'bg-primary/10' },
@@ -34,16 +38,40 @@ const reportTypes = [
   { id: 'profit', name: 'Analyse des profits', description: 'Bénéfices par vente', icon: TrendingUp, color: 'text-chart-4', bgColor: 'bg-chart-4/10' },
 ];
 
-const periods = [
-  { id: 'daily', name: 'Quotidien', description: 'Rapport du jour' },
-  { id: 'monthly', name: 'Mensuel', description: 'Rapport du mois' },
-  { id: 'semester', name: 'Semestriel', description: 'Rapport sur 6 mois' },
-  { id: 'annual', name: 'Annuel', description: "Rapport de l'annee" },
+const periodOptions = [
+  { id: 'daily', name: 'Quotidien', description: "Rapport du jour" },
+  { id: 'monthly', name: 'Mensuel', description: 'Mois en cours' },
+  { id: 'semester', name: 'Semestriel', description: '6 derniers mois' },
+  { id: 'annual', name: 'Annuel', description: "Année en cours" },
+  { id: 'custom', name: 'Personnalisé', description: 'Choisir les dates' },
 ];
+
+function getDateRange(period: string, customFrom?: Date, customTo?: Date): { start: Date; end: Date; label: string } {
+  const now = new Date();
+  switch (period) {
+    case 'daily':
+      return { start: startOfDay(now), end: endOfDay(now), label: format(now, 'dd MMMM yyyy', { locale: fr }) };
+    case 'monthly':
+      return { start: startOfMonth(now), end: endOfMonth(now), label: format(now, 'MMMM yyyy', { locale: fr }) };
+    case 'semester':
+      return { start: startOfMonth(subMonths(now, 5)), end: endOfDay(now), label: `${format(subMonths(now, 5), 'MMM yyyy', { locale: fr })} - ${format(now, 'MMM yyyy', { locale: fr })}` };
+    case 'annual':
+      return { start: startOfYear(now), end: endOfYear(now), label: format(now, 'yyyy') };
+    case 'custom':
+      if (customFrom && customTo) {
+        return { start: startOfDay(customFrom), end: endOfDay(customTo), label: `${format(customFrom, 'dd/MM/yyyy')} - ${format(customTo, 'dd/MM/yyyy')}` };
+      }
+      return { start: startOfDay(now), end: endOfDay(now), label: 'Sélectionnez les dates' };
+    default:
+      return { start: startOfMonth(now), end: endOfMonth(now), label: format(now, 'MMMM yyyy', { locale: fr }) };
+  }
+}
 
 export default function Reports() {
   const [selectedReport, setSelectedReport] = useState<string | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
+  const [customFrom, setCustomFrom] = useState<Date | undefined>(undefined);
+  const [customTo, setCustomTo] = useState<Date | undefined>(undefined);
   const [isGenerating, setIsGenerating] = useState(false);
   const [viewingReport, setViewingReport] = useState<string | null>(null);
   const { products } = useProducts();
@@ -53,47 +81,67 @@ export default function Reports() {
   const { reports, addReport, deleteReport } = useReports();
   const { currentUser } = useAuth();
 
-  const generateReportContent = (type: string) => {
-    const date = format(new Date(), 'dd MMMM yyyy', { locale: fr });
-    const periodName = periods.find(p => p.id === selectedPeriod)?.name || '';
+  const dateRange = useMemo(() => getDateRange(selectedPeriod, customFrom, customTo), [selectedPeriod, customFrom, customTo]);
+
+  const filteredSales = useMemo(() => {
+    return sales.filter(s => {
+      const d = new Date(s.date);
+      return isWithinInterval(d, { start: dateRange.start, end: dateRange.end });
+    });
+  }, [sales, dateRange]);
+
+  const filteredEntries = useMemo(() => {
+    return entries.filter(e => {
+      const d = new Date(e.date);
+      return isWithinInterval(d, { start: dateRange.start, end: dateRange.end });
+    });
+  }, [entries, dateRange]);
+
+  const generateReportContent = (type: string, salesData: Sale[], entriesData: FinancialEntry[]) => {
+    const periodLabel = dateRange.label;
 
     let content = `RAPPORT ${reportTypes.find(r => r.id === type)?.name.toUpperCase()}\n`;
-    content += `Date: ${date}\nPériode: ${periodName}\n`;
+    content += `Période: ${periodLabel}\n`;
     content += `Généré par: ${currentUser?.name || 'Inconnu'}\n`;
     content += `${'='.repeat(50)}\n\n`;
 
     switch (type) {
       case 'sales':
         content += `VENTES\n${'-'.repeat(30)}\n`;
-        sales.forEach(sale => {
-          content += `\nVente du ${format(new Date(sale.date), 'dd/MM/yyyy HH:mm')}\n`;
-          content += `  Paiement: ${paymentMethodLabels[sale.paymentMethod]}\n`;
-          sale.items.forEach(item => {
-            content += `  - ${item.productName}: ${item.quantity} x ${formatCurrency(item.unitPrice)} = ${formatCurrency(item.totalAmount)}\n`;
+        if (salesData.length === 0) {
+          content += 'Aucune vente pour cette période.\n';
+        } else {
+          salesData.forEach(sale => {
+            content += `\nVente du ${format(new Date(sale.date), 'dd/MM/yyyy HH:mm')}\n`;
+            content += `  Paiement: ${paymentMethodLabels[sale.paymentMethod]}\n`;
+            sale.items.forEach(item => {
+              content += `  - ${item.productName}: ${item.quantity} x ${formatCurrency(item.unitPrice)} = ${formatCurrency(item.totalAmount)}\n`;
+            });
+            content += `  Total: ${formatCurrency(sale.totalAmount)}\n`;
+            content += `  Statut: ${sale.status === 'completed' ? 'Complétée' : 'Annulée'}\n`;
           });
-          content += `  Total: ${formatCurrency(sale.totalAmount)}\n`;
-          content += `  Statut: ${sale.status === 'completed' ? 'Complétée' : 'Annulée'}\n`;
-        });
-        const totalSales = sales.filter(s => s.status === 'completed').reduce((sum, s) => sum + s.totalAmount, 0);
-        content += `\n${'='.repeat(50)}\nTOTAL VENTES: ${formatCurrency(totalSales)}\n`;
+          const totalSales = salesData.filter(s => s.status === 'completed').reduce((sum, s) => sum + s.totalAmount, 0);
+          content += `\n${'='.repeat(50)}\nTOTAL VENTES: ${formatCurrency(totalSales)}\n`;
+        }
         break;
 
-      case 'financial':
-        const totalRevenue = entries.filter(e => e.type === 'income').reduce((sum, e) => sum + e.amount, 0);
-        const totalExpenses = entries.filter(e => e.type === 'expense').reduce((sum, e) => sum + e.amount, 0);
+      case 'financial': {
+        const incomes = entriesData.filter(e => e.type === 'income');
+        const expenses = entriesData.filter(e => e.type === 'expense');
+        const totalRevenue = incomes.reduce((sum, e) => sum + e.amount, 0);
+        const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
         content += `REVENUS\n${'-'.repeat(30)}\n`;
-        entries.filter(e => e.type === 'income').forEach(e => {
-          content += `${e.category}: ${formatCurrency(e.amount)} - ${e.description}\n`;
-        });
+        if (incomes.length === 0) content += 'Aucun revenu pour cette période.\n';
+        else incomes.forEach(e => { content += `${e.category}: ${formatCurrency(e.amount)} - ${e.description}\n`; });
         content += `\nDÉPENSES\n${'-'.repeat(30)}\n`;
-        entries.filter(e => e.type === 'expense').forEach(e => {
-          content += `${e.category}: ${formatCurrency(e.amount)} - ${e.description}\n`;
-        });
+        if (expenses.length === 0) content += 'Aucune dépense pour cette période.\n';
+        else expenses.forEach(e => { content += `${e.category}: ${formatCurrency(e.amount)} - ${e.description}\n`; });
         content += `\n${'='.repeat(50)}\n`;
         content += `Revenus: ${formatCurrency(totalRevenue)}\nDépenses: ${formatCurrency(totalExpenses)}\nSolde: ${formatCurrency(totalRevenue - totalExpenses)}\n`;
         break;
+      }
 
-      case 'stock':
+      case 'stock': {
         const totalStockValue = products.reduce((sum, p) => sum + (p.purchasePrice * p.quantity), 0);
         content += `INVENTAIRE\n${'-'.repeat(30)}\n`;
         products.forEach(p => {
@@ -103,28 +151,33 @@ export default function Reports() {
         });
         content += `\n${'='.repeat(50)}\nValeur du stock: ${formatCurrency(totalStockValue)}\n`;
         break;
+      }
 
-      case 'profit':
+      case 'profit': {
+        const completed = salesData.filter(s => s.status === 'completed');
         content += `ANALYSE DES BÉNÉFICES\n${'-'.repeat(30)}\n`;
-        sales.filter(s => s.status === 'completed').forEach(sale => {
-          content += `\nVente du ${format(new Date(sale.date), 'dd/MM/yyyy')}\n`;
-          sale.items.forEach(item => {
-            const margin = item.purchasePrice > 0 ? ((item.unitPrice - item.purchasePrice) / item.purchasePrice * 100).toFixed(1) : '0';
-            content += `  - ${item.productName}: Marge ${margin}% | Bénéfice: ${formatCurrency(item.profit)}\n`;
+        if (completed.length === 0) content += 'Aucune vente complétée pour cette période.\n';
+        else {
+          completed.forEach(sale => {
+            content += `\nVente du ${format(new Date(sale.date), 'dd/MM/yyyy')}\n`;
+            sale.items.forEach(item => {
+              const margin = item.purchasePrice > 0 ? ((item.unitPrice - item.purchasePrice) / item.purchasePrice * 100).toFixed(1) : '0';
+              content += `  - ${item.productName}: Marge ${margin}% | Bénéfice: ${formatCurrency(item.profit)}\n`;
+            });
+            content += `  Total bénéfice: ${formatCurrency(sale.totalProfit)}\n`;
           });
-          content += `  Total bénéfice: ${formatCurrency(sale.totalProfit)}\n`;
-        });
-        const totalProfit = sales.filter(s => s.status === 'completed').reduce((sum, s) => sum + s.totalProfit, 0);
-        content += `\n${'='.repeat(50)}\nBÉNÉFICE TOTAL: ${formatCurrency(totalProfit)}\n`;
+          const totalProfit = completed.reduce((sum, s) => sum + s.totalProfit, 0);
+          content += `\n${'='.repeat(50)}\nBÉNÉFICE TOTAL: ${formatCurrency(totalProfit)}\n`;
+        }
         break;
+      }
     }
     return content;
   };
 
-  const generatePDF = (type: string) => {
+  const generatePDF = (type: string, salesData: Sale[], entriesData: FinancialEntry[]) => {
     const doc = new jsPDF();
-    const date = format(new Date(), 'dd MMMM yyyy', { locale: fr });
-    const periodName = periods.find(p => p.id === selectedPeriod)?.name || '';
+    const periodLabel = dateRange.label;
     const reportTypeName = reportTypes.find(r => r.id === type)?.name || '';
     const reportColor = type === 'sales' ? [59, 130, 246] : type === 'financial' ? [34, 197, 94] : type === 'stock' ? [234, 179, 8] : [168, 85, 247];
 
@@ -136,53 +189,53 @@ export default function Reports() {
     doc.setFontSize(14);
     doc.text(reportTypeName.toUpperCase(), 105, 30, { align: 'center' });
     doc.setFontSize(10);
-    doc.text(`${periodName} - ${date}`, 105, 40, { align: 'center' });
+    doc.text(`Periode: ${periodLabel}`, 105, 40, { align: 'center' });
 
     doc.setFillColor(245, 245, 245);
-    doc.roundedRect(14, 50, 182, 18, 3, 3, 'F');
+    doc.roundedRect(14, 50, 182, 14, 3, 3, 'F');
     doc.setFontSize(9);
     doc.setTextColor(80, 80, 80);
-    doc.text(`Date de generation: ${date}`, 20, 58);
-    doc.text(`Periode: ${periodName}`, 90, 58);
-    doc.text(`Genere par: ${currentUser?.name || 'Inconnu'}`, 150, 58);
+    doc.text(`Date de generation: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, 20, 59);
+    doc.text(`Genere par: ${currentUser?.name || 'Inconnu'}`, 140, 59);
 
-    let yPosition = 78;
+    let yPosition = 74;
 
     switch (type) {
       case 'sales': {
-        if (sales.length === 0) {
+        const completed = salesData.filter(s => s.status === 'completed');
+        if (completed.length === 0) {
           doc.setFontSize(12);
           doc.setTextColor(100, 100, 100);
-          doc.text('Aucune vente enregistree', 105, yPosition, { align: 'center' });
+          doc.text('Aucune vente pour cette periode', 105, yPosition, { align: 'center' });
         } else {
-          // Flatten sale items for the table
-          const salesData: string[][] = [];
-          sales.forEach(sale => {
+          const salesTableData: string[][] = [];
+          completed.forEach(sale => {
             sale.items.forEach((item, idx) => {
-              salesData.push([
+              salesTableData.push([
+                idx === 0 ? format(new Date(sale.date), 'dd/MM/yy') : '',
                 item.productName,
                 item.quantity.toString(),
                 formatCurrencyPDF(item.unitPrice),
                 formatCurrencyPDF(item.totalAmount),
                 formatCurrencyPDF(item.profit),
-                idx === 0 ? (sale.status === 'completed' ? 'Completee' : 'Annulee') : '',
+                idx === 0 ? paymentMethodLabels[sale.paymentMethod] : '',
               ]);
             });
           });
 
           autoTable(doc, {
             startY: yPosition,
-            head: [['Produit', 'Qte', 'Prix Unit.', 'Total', 'Benefice', 'Statut']],
-            body: salesData,
+            head: [['Date', 'Produit', 'Qte', 'Prix Unit.', 'Total', 'Benefice', 'Paiement']],
+            body: salesTableData,
             theme: 'grid',
-            headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: 'bold', halign: 'center' },
-            styles: { fontSize: 9, cellPadding: 4 },
+            headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: 'bold', halign: 'center', fontSize: 8 },
+            styles: { fontSize: 8, cellPadding: 3 },
             alternateRowStyles: { fillColor: [240, 248, 255] },
-            columnStyles: { 0: { halign: 'left' }, 1: { halign: 'center' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'center' } },
+            columnStyles: { 0: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'center' } },
           });
 
-          const totalSales = sales.filter(s => s.status === 'completed').reduce((sum, s) => sum + s.totalAmount, 0);
-          const totalProfit = sales.filter(s => s.status === 'completed').reduce((sum, s) => sum + s.totalProfit, 0);
+          const totalSales = completed.reduce((sum, s) => sum + s.totalAmount, 0);
+          const totalProfit = completed.reduce((sum, s) => sum + s.totalProfit, 0);
           const finalY = (doc as any).lastAutoTable.finalY + 10;
 
           doc.setFillColor(59, 130, 246);
@@ -198,13 +251,20 @@ export default function Reports() {
           doc.text('TOTAL BENEFICES', 152, finalY + 10, { align: 'center' });
           doc.setFontSize(14);
           doc.text(formatCurrencyPDF(totalProfit), 152, finalY + 20, { align: 'center' });
+
+          // Summary
+          const summaryY = finalY + 40;
+          doc.setFontSize(9);
+          doc.setTextColor(80, 80, 80);
+          doc.text(`Nombre de ventes: ${completed.length}`, 20, summaryY);
+          doc.text(`Articles vendus: ${completed.reduce((s, sale) => s + sale.items.reduce((si, i) => si + i.quantity, 0), 0)}`, 20, summaryY + 6);
         }
         break;
       }
 
       case 'financial': {
-        const incomes = entries.filter(e => e.type === 'income');
-        const expenses = entries.filter(e => e.type === 'expense');
+        const incomes = entriesData.filter(e => e.type === 'income');
+        const expenses = entriesData.filter(e => e.type === 'expense');
         const totalRevenue = incomes.reduce((sum, e) => sum + e.amount, 0);
         const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
 
@@ -217,16 +277,19 @@ export default function Reports() {
         if (incomes.length > 0) {
           autoTable(doc, {
             startY: yPosition + 10,
-            head: [['Categorie', 'Description', 'Montant']],
-            body: incomes.map(e => [e.category, e.description, formatCurrencyPDF(e.amount)]),
+            head: [['Date', 'Categorie', 'Description', 'Montant']],
+            body: incomes.map(e => [format(new Date(e.date), 'dd/MM/yy'), e.category, e.description, formatCurrencyPDF(e.amount)]),
             theme: 'grid',
             headStyles: { fillColor: [34, 197, 94], textColor: 255, fontStyle: 'bold' },
             styles: { fontSize: 9, cellPadding: 3 },
-            columnStyles: { 2: { halign: 'right' } },
+            columnStyles: { 0: { halign: 'center' }, 3: { halign: 'right' } },
           });
           yPosition = (doc as any).lastAutoTable.finalY + 15;
         } else {
-          yPosition += 20;
+          doc.setFontSize(9);
+          doc.setTextColor(100, 100, 100);
+          doc.text('Aucun revenu pour cette periode', 58, yPosition + 15, { align: 'center' });
+          yPosition += 25;
         }
 
         doc.setFillColor(239, 68, 68);
@@ -238,16 +301,19 @@ export default function Reports() {
         if (expenses.length > 0) {
           autoTable(doc, {
             startY: yPosition + 10,
-            head: [['Categorie', 'Description', 'Montant']],
-            body: expenses.map(e => [e.category, e.description, formatCurrencyPDF(e.amount)]),
+            head: [['Date', 'Categorie', 'Description', 'Montant']],
+            body: expenses.map(e => [format(new Date(e.date), 'dd/MM/yy'), e.category, e.description, formatCurrencyPDF(e.amount)]),
             theme: 'grid',
             headStyles: { fillColor: [239, 68, 68], textColor: 255, fontStyle: 'bold' },
             styles: { fontSize: 9, cellPadding: 3 },
-            columnStyles: { 2: { halign: 'right' } },
+            columnStyles: { 0: { halign: 'center' }, 3: { halign: 'right' } },
           });
           yPosition = (doc as any).lastAutoTable.finalY + 15;
         } else {
-          yPosition += 20;
+          doc.setFontSize(9);
+          doc.setTextColor(100, 100, 100);
+          doc.text('Aucune depense pour cette periode', 58, yPosition + 15, { align: 'center' });
+          yPosition += 25;
         }
 
         const balance = totalRevenue - totalExpenses;
@@ -300,35 +366,42 @@ export default function Reports() {
           });
 
           const totalStockValue = products.reduce((sum, p) => sum + (p.purchasePrice * p.quantity), 0);
+          const lowStock = products.filter(p => p.quantity > 0 && p.quantity <= p.minStock).length;
+          const outOfStock = products.filter(p => p.quantity === 0).length;
           const finalY = (doc as any).lastAutoTable.finalY + 10;
           doc.setFillColor(59, 130, 246);
-          doc.roundedRect(14, finalY, 88, 22, 3, 3, 'F');
+          doc.roundedRect(14, finalY, 58, 22, 3, 3, 'F');
+          doc.setFillColor(234, 179, 8);
+          doc.roundedRect(76, finalY, 58, 22, 3, 3, 'F');
           doc.setFillColor(34, 197, 94);
-          doc.roundedRect(108, finalY, 88, 22, 3, 3, 'F');
+          doc.roundedRect(138, finalY, 58, 22, 3, 3, 'F');
           doc.setFontSize(8);
           doc.setTextColor(255, 255, 255);
-          doc.text('Total produits', 58, finalY + 8, { align: 'center' });
-          doc.text('Valeur du stock', 152, finalY + 8, { align: 'center' });
-          doc.setFontSize(14);
-          doc.text(products.length.toString(), 58, finalY + 17, { align: 'center' });
+          doc.text('Total produits', 43, finalY + 8, { align: 'center' });
+          doc.text(`Stock faible / Rupture`, 105, finalY + 8, { align: 'center' });
+          doc.text('Valeur du stock', 167, finalY + 8, { align: 'center' });
+          doc.setFontSize(13);
+          doc.text(products.length.toString(), 43, finalY + 17, { align: 'center' });
+          doc.text(`${lowStock} / ${outOfStock}`, 105, finalY + 17, { align: 'center' });
           doc.setFontSize(10);
-          doc.text(formatCurrencyPDF(totalStockValue), 152, finalY + 17, { align: 'center' });
+          doc.text(formatCurrencyPDF(totalStockValue), 167, finalY + 17, { align: 'center' });
         }
         break;
       }
 
       case 'profit': {
-        const completedSales = sales.filter(s => s.status === 'completed');
+        const completedSales = salesData.filter(s => s.status === 'completed');
         if (completedSales.length === 0) {
           doc.setFontSize(12);
           doc.setTextColor(100, 100, 100);
-          doc.text('Aucune vente completee', 105, yPosition, { align: 'center' });
+          doc.text('Aucune vente completee pour cette periode', 105, yPosition, { align: 'center' });
         } else {
           const profitData: string[][] = [];
           completedSales.forEach(sale => {
-            sale.items.forEach(item => {
+            sale.items.forEach((item, idx) => {
               const margin = item.purchasePrice > 0 ? ((item.unitPrice - item.purchasePrice) / item.purchasePrice * 100).toFixed(1) : '0';
               profitData.push([
+                idx === 0 ? format(new Date(sale.date), 'dd/MM/yy') : '',
                 item.productName,
                 formatCurrencyPDF(item.purchasePrice),
                 formatCurrencyPDF(item.unitPrice),
@@ -340,23 +413,31 @@ export default function Reports() {
 
           autoTable(doc, {
             startY: yPosition,
-            head: [['Produit', 'Prix Achat', 'Prix Vente', 'Marge', 'Benefice']],
+            head: [['Date', 'Produit', 'Prix Achat', 'Prix Vente', 'Marge', 'Benefice']],
             body: profitData,
             theme: 'grid',
-            headStyles: { fillColor: [168, 85, 247], textColor: 255, fontStyle: 'bold', halign: 'center' },
-            styles: { fontSize: 9, cellPadding: 4 },
-            columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'center' }, 4: { halign: 'right' } },
+            headStyles: { fillColor: [168, 85, 247], textColor: 255, fontStyle: 'bold', halign: 'center', fontSize: 8 },
+            styles: { fontSize: 8, cellPadding: 3 },
+            columnStyles: { 0: { halign: 'center' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'center' }, 5: { halign: 'right' } },
           });
 
           const totalProfit = completedSales.reduce((sum, s) => sum + s.totalProfit, 0);
+          const totalRevenue = completedSales.reduce((sum, s) => sum + s.totalAmount, 0);
+          const avgMargin = totalRevenue > 0 ? (totalProfit / totalRevenue * 100).toFixed(1) : '0';
           const finalY = (doc as any).lastAutoTable.finalY + 10;
           doc.setFillColor(168, 85, 247);
-          doc.roundedRect(14, finalY, 182, 25, 3, 3, 'F');
+          doc.roundedRect(14, finalY, 120, 25, 3, 3, 'F');
+          doc.setFillColor(108, 45, 187);
+          doc.roundedRect(140, finalY, 56, 25, 3, 3, 'F');
           doc.setFontSize(10);
           doc.setTextColor(255, 255, 255);
-          doc.text('BENEFICE TOTAL', 105, finalY + 10, { align: 'center' });
+          doc.text('BENEFICE TOTAL', 74, finalY + 10, { align: 'center' });
           doc.setFontSize(16);
-          doc.text(formatCurrencyPDF(totalProfit), 105, finalY + 20, { align: 'center' });
+          doc.text(formatCurrencyPDF(totalProfit), 74, finalY + 20, { align: 'center' });
+          doc.setFontSize(8);
+          doc.text('Marge moyenne', 168, finalY + 10, { align: 'center' });
+          doc.setFontSize(14);
+          doc.text(`${avgMargin}%`, 168, finalY + 20, { align: 'center' });
         }
         break;
       }
@@ -377,24 +458,27 @@ export default function Reports() {
       toast.error('Veuillez sélectionner un type de rapport');
       return;
     }
+    if (selectedPeriod === 'custom' && (!customFrom || !customTo)) {
+      toast.error('Veuillez sélectionner les dates de début et fin');
+      return;
+    }
 
     setIsGenerating(true);
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    const content = generateReportContent(selectedReport);
+    const content = generateReportContent(selectedReport, filteredSales, filteredEntries);
     const reportTypeName = reportTypes.find(r => r.id === selectedReport)?.name || '';
-    const periodName = periods.find(p => p.id === selectedPeriod)?.name || '';
 
     addReport({
       type: selectedReport as 'sales' | 'financial' | 'stock' | 'profit',
       period: selectedPeriod as 'daily' | 'monthly' | 'semester' | 'annual',
-      name: `${reportTypeName} - ${periodName}`,
+      name: `${reportTypeName} - ${dateRange.label}`,
       content,
       generatedAt: new Date(),
       generatedBy: currentUser?.name || 'Inconnu',
     });
 
-    const doc = generatePDF(selectedReport);
+    const doc = generatePDF(selectedReport, filteredSales, filteredEntries);
     doc.save(`rapport_${selectedReport}_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
 
     setIsGenerating(false);
@@ -407,67 +491,116 @@ export default function Reports() {
   };
 
   const handleDownloadReport = (report: typeof reports[0]) => {
-    const doc = new jsPDF();
-    const date = format(new Date(report.generatedAt), 'dd MMMM yyyy', { locale: fr });
-    const periodName = periods.find(p => p.id === report.period)?.name || '';
-    const reportTypeName = reportTypes.find(r => r.id === report.type)?.name || '';
-
-    doc.setFontSize(20);
-    doc.setTextColor(40, 40, 40);
-    doc.text('SALLEN TRADING AND SERVICE', 105, 20, { align: 'center' });
-    doc.setFontSize(16);
-    doc.setTextColor(60, 60, 60);
-    doc.text(reportTypeName.toUpperCase(), 105, 32, { align: 'center' });
-    doc.setFontSize(10);
-    doc.setTextColor(100, 100, 100);
-    doc.text(`Date: ${date}`, 14, 45);
-    doc.text(`Période: ${periodName}`, 14, 52);
-
-    const lines = report.content.split('\n');
-    let yPosition = 65;
-    doc.setFontSize(9);
-    doc.setTextColor(60, 60, 60);
-    lines.forEach(line => {
-      if (yPosition > 280) { doc.addPage(); yPosition = 20; }
-      doc.text(line, 14, yPosition);
-      yPosition += 5;
-    });
-
+    // Re-generate the styled PDF for the report
+    const doc = generatePDF(report.type, filteredSales, filteredEntries);
     doc.save(`rapport_${report.type}_${format(new Date(report.generatedAt), 'yyyy-MM-dd')}.pdf`);
     toast.success('Rapport téléchargé');
   };
 
   const getReportTypeInfo = (type: string) => reportTypes.find(r => r.id === type) || reportTypes[0];
 
+  // Stats preview
+  const completedFilteredSales = filteredSales.filter(s => s.status === 'completed');
+  const previewTotalSales = completedFilteredSales.reduce((sum, s) => sum + s.totalAmount, 0);
+  const previewTotalProfit = completedFilteredSales.reduce((sum, s) => sum + s.totalProfit, 0);
+  const previewIncomes = filteredEntries.filter(e => e.type === 'income').reduce((sum, e) => sum + e.amount, 0);
+  const previewExpenses = filteredEntries.filter(e => e.type === 'expense').reduce((sum, e) => sum + e.amount, 0);
+
   return (
     <MainLayout title="Rapports et statistiques" subtitle="Génération et historique des rapports">
       <div className="space-y-6">
+        {/* Period Selection */}
         <Card className="p-6 shadow-card">
-          <div className="flex items-center gap-4 mb-6">
+          <div className="flex items-center gap-4 mb-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-              <Calendar className="h-5 w-5 text-primary" />
+              <CalendarIcon className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h3 className="font-semibold text-foreground">Période de rapport</h3>
-              <p className="text-sm text-muted-foreground">Sélectionnez la période</p>
+              <h3 className="font-semibold text-foreground">Période du rapport</h3>
+              <p className="text-sm text-muted-foreground">Sélectionnez la période pour filtrer les données</p>
             </div>
           </div>
-          <div className="grid gap-4 md:grid-cols-4">
-            {periods.map((period) => (
+          <div className="grid gap-3 md:grid-cols-5">
+            {periodOptions.map((period) => (
               <button key={period.id} onClick={() => setSelectedPeriod(period.id)}
-                className={`flex flex-col items-start rounded-lg border p-4 text-left transition-all duration-200 ${selectedPeriod === period.id ? 'border-primary bg-primary/5 shadow-sm' : 'border-border hover:border-primary/50 hover:bg-secondary/50'}`}>
-                <span className="font-medium text-foreground">{period.name}</span>
-                <span className="text-sm text-muted-foreground">{period.description}</span>
+                className={cn(
+                  'flex flex-col items-start rounded-lg border p-3 text-left transition-all duration-200',
+                  selectedPeriod === period.id ? 'border-primary bg-primary/5 shadow-sm ring-1 ring-primary' : 'border-border hover:border-primary/50 hover:bg-secondary/50'
+                )}>
+                <span className="font-medium text-sm text-foreground">{period.name}</span>
+                <span className="text-xs text-muted-foreground">{period.description}</span>
               </button>
             ))}
           </div>
+
+          {/* Custom date range */}
+          {selectedPeriod === 'custom' && (
+            <div className="mt-4 flex flex-wrap items-end gap-4 p-4 rounded-lg border border-dashed bg-secondary/20">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Date de début</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-[180px] justify-start text-left font-normal", !customFrom && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {customFrom ? format(customFrom, 'dd/MM/yyyy') : 'Début'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={customFrom} onSelect={setCustomFrom} initialFocus className={cn("p-3 pointer-events-auto")} />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Date de fin</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-[180px] justify-start text-left font-normal", !customTo && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {customTo ? format(customTo, 'dd/MM/yyyy') : 'Fin'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={customTo} onSelect={setCustomTo} disabled={(date) => customFrom ? date < customFrom : false} initialFocus className={cn("p-3 pointer-events-auto")} />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              {customFrom && customTo && (
+                <Badge variant="secondary" className="h-9 px-3">{dateRange.label}</Badge>
+              )}
+            </div>
+          )}
+
+          {/* Period preview stats */}
+          <div className="mt-4 grid gap-3 md:grid-cols-4">
+            <div className="rounded-lg bg-primary/5 border border-primary/10 p-3">
+              <p className="text-xs text-muted-foreground">Ventes ({dateRange.label})</p>
+              <p className="text-lg font-bold text-foreground">{completedFilteredSales.length}</p>
+              <p className="text-xs text-primary">{formatCurrency(previewTotalSales)}</p>
+            </div>
+            <div className="rounded-lg bg-success/5 border border-success/10 p-3">
+              <p className="text-xs text-muted-foreground">Bénéfices</p>
+              <p className="text-lg font-bold text-success">{formatCurrency(previewTotalProfit)}</p>
+            </div>
+            <div className="rounded-lg bg-chart-4/5 border border-chart-4/10 p-3">
+              <p className="text-xs text-muted-foreground">Revenus</p>
+              <p className="text-lg font-bold text-foreground">{formatCurrency(previewIncomes)}</p>
+            </div>
+            <div className="rounded-lg bg-destructive/5 border border-destructive/10 p-3">
+              <p className="text-xs text-muted-foreground">Dépenses</p>
+              <p className="text-lg font-bold text-destructive">{formatCurrency(previewExpenses)}</p>
+            </div>
+          </div>
         </Card>
 
+        {/* Report Types */}
         <div>
           <h3 className="text-lg font-semibold text-foreground mb-4">Types de rapports</h3>
           <div className="grid gap-4 md:grid-cols-2">
             {reportTypes.map((report) => (
-              <Card key={report.id} className={`p-6 shadow-card cursor-pointer transition-all duration-200 ${selectedReport === report.id ? 'border-primary ring-1 ring-primary shadow-glow' : 'hover:shadow-card-hover'}`} onClick={() => setSelectedReport(report.id)}>
+              <Card key={report.id} className={cn(
+                'p-6 shadow-card cursor-pointer transition-all duration-200',
+                selectedReport === report.id ? 'border-primary ring-1 ring-primary shadow-glow' : 'hover:shadow-card-hover'
+              )} onClick={() => setSelectedReport(report.id)}>
                 <div className="flex items-start gap-4">
                   <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${report.bgColor}`}>
                     <report.icon className={`h-6 w-6 ${report.color}`} />
@@ -476,7 +609,10 @@ export default function Reports() {
                     <h4 className="font-semibold text-foreground">{report.name}</h4>
                     <p className="text-sm text-muted-foreground mt-1">{report.description}</p>
                   </div>
-                  <div className={`h-5 w-5 rounded-full border-2 transition-colors ${selectedReport === report.id ? 'border-primary bg-primary' : 'border-muted-foreground/30'}`}>
+                  <div className={cn(
+                    'h-5 w-5 rounded-full border-2 transition-colors',
+                    selectedReport === report.id ? 'border-primary bg-primary' : 'border-muted-foreground/30'
+                  )}>
                     {selectedReport === report.id && <div className="h-full w-full flex items-center justify-center"><div className="h-2 w-2 rounded-full bg-primary-foreground" /></div>}
                   </div>
                 </div>
@@ -485,6 +621,7 @@ export default function Reports() {
           </div>
         </div>
 
+        {/* Generate Button */}
         <Card className="p-6 shadow-card">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
@@ -494,16 +631,19 @@ export default function Reports() {
               <div>
                 <h4 className="font-semibold text-foreground">Générer le rapport PDF</h4>
                 <p className="text-sm text-muted-foreground">
-                  {selectedReport ? `${reportTypes.find(r => r.id === selectedReport)?.name} - ${periods.find(p => p.id === selectedPeriod)?.name}` : 'Sélectionnez un type'}
+                  {selectedReport
+                    ? `${reportTypes.find(r => r.id === selectedReport)?.name} — ${dateRange.label}`
+                    : 'Sélectionnez un type de rapport'}
                 </p>
               </div>
             </div>
-            <Button variant="gradient" size="lg" disabled={!selectedReport || isGenerating} onClick={handleGenerateReport} className="w-full sm:w-auto">
+            <Button variant="gradient" size="lg" disabled={!selectedReport || isGenerating || (selectedPeriod === 'custom' && (!customFrom || !customTo))} onClick={handleGenerateReport} className="w-full sm:w-auto">
               {isGenerating ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Génération...</>) : (<><Download className="mr-2 h-4 w-4" />Télécharger PDF</>)}
             </Button>
           </div>
         </Card>
 
+        {/* History */}
         <Card className="p-6 shadow-card">
           <div className="flex items-center gap-4 mb-6">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-chart-4/10">
@@ -545,10 +685,10 @@ export default function Reports() {
                             <span className="font-medium">{typeInfo.name}</span>
                           </div>
                         </TableCell>
-                        <TableCell><Badge variant="outline">{periods.find(p => p.id === report.period)?.name}</Badge></TableCell>
+                        <TableCell><Badge variant="outline">{report.name.split(' - ').slice(1).join(' - ') || periodOptions.find(p => p.id === report.period)?.name}</Badge></TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2 text-muted-foreground">
-                            <Calendar className="h-4 w-4" />
+                            <CalendarIcon className="h-4 w-4" />
                             {format(new Date(report.generatedAt), 'dd MMM yyyy HH:mm', { locale: fr })}
                           </div>
                         </TableCell>
