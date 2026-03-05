@@ -602,139 +602,173 @@ export default function Sales() {
 
       {/* New Sale Dialog */}
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>Nouvelle vente</DialogTitle>
-            <DialogDescription>Sélectionnez les produits et le mode de paiement.</DialogDescription>
+            <DialogTitle className="flex items-center gap-2">
+              <ShoppingCart className="h-5 w-5 text-primary" />
+              Nouvelle vente
+            </DialogTitle>
+            <DialogDescription>Sélectionnez les produits, ajustez les quantités et choisissez le mode de paiement.</DialogDescription>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto space-y-4 py-2">
-            {/* Product Search */}
-            <div className="space-y-2">
-              <Label>Rechercher un produit</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
-                <Input
-                  placeholder="Rechercher..."
-                  value={productSearch}
-                  onChange={(e) => setProductSearch(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-              <ScrollArea className="h-40 rounded-lg border">
-                {products
-                  .filter(p => p.quantity > 0)
-                  .filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()))
-                  .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
-                  .map((product) => (
-                    <div
-                      key={product.id}
-                      onClick={() => addToCart(product)}
-                      className="flex items-center gap-3 p-3 cursor-pointer transition-colors hover:bg-secondary/50 border-b last:border-b-0"
-                    >
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary font-semibold text-sm">
-                        {product.name.charAt(0)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm text-foreground truncate">{product.name}</p>
-                        <p className="text-xs text-muted-foreground">{product.quantity} dispo • {formatCurrency(product.purchasePrice)}</p>
-                      </div>
-                      <Button variant="outline" size="sm">
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ))}
-                {products.filter(p => p.quantity > 0).filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase())).length === 0 && (
-                  <div className="p-4 text-center text-sm text-muted-foreground">Aucun produit</div>
-                )}
-              </ScrollArea>
-            </div>
-
-            {/* Cart */}
-            {cart.length > 0 && (
-              <div className="space-y-2">
-                <Label>Panier ({cart.length} produit(s))</Label>
-                <div className="rounded-lg border divide-y">
-                  {cart.map(item => (
-                    <div key={item.productId} className="p-3 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-sm">{item.productName}</span>
-                        <Button variant="ghost" size="sm" onClick={() => removeFromCart(item.productId)}>
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <Label className="text-xs">Quantité (max: {item.availableStock})</Label>
-                          <Input
-                            type="number"
-                            min={1}
-                            max={item.availableStock}
-                            value={item.quantity}
-                            onChange={(e) => updateCartItem(item.productId, 'quantity', Number(e.target.value))}
-                            className="h-8 text-sm"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">Prix unitaire (FCFA)</Label>
-                          <Input
-                            type="number"
-                            value={item.unitPrice}
-                            onChange={(e) => updateCartItem(item.productId, 'unitPrice', Number(e.target.value))}
-                            className="h-8 text-sm"
-                          />
-                        </div>
-                      </div>
-                      <div className="text-xs text-muted-foreground flex justify-between">
-                        <span>Sous-total: {formatCurrency(item.unitPrice * item.quantity)}</span>
-                        {isAdmin && (
-                          <span className={cn((item.unitPrice - item.purchasePrice) >= 0 ? 'text-success' : 'text-destructive')}>
-                            Bénéfice: {formatCurrency((item.unitPrice - item.purchasePrice) * item.quantity)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+          <div className="flex-1 overflow-hidden">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-full">
+              {/* Left: Product Selection */}
+              <div className="space-y-3 flex flex-col min-h-0">
+                <Label className="text-sm font-semibold flex items-center gap-2">
+                  <Search className="h-4 w-4 text-muted-foreground" />
+                  Produits disponibles
+                </Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
+                  <Input
+                    placeholder="Rechercher un produit..."
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                    className="pl-9"
+                  />
                 </div>
-              </div>
-            )}
-
-            {/* Payment Method */}
-            <div className="space-y-2">
-              <Label>Mode de paiement</Label>
-              <Select value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(paymentMethodLabels).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>{label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Total */}
-            {cart.length > 0 && (
-              <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <span className="text-muted-foreground">Total vente:</span>
-                  <span className="font-bold text-right text-lg">{formatCurrency(cartTotal)}</span>
-                  {isAdmin && (
-                    <>
-                      <span className="text-muted-foreground">Bénéfice total:</span>
-                      <span className={cn("font-semibold text-right", cartProfit >= 0 ? "text-success" : "text-destructive")}>
-                        {cartProfit >= 0 ? '+' : ''}{formatCurrency(cartProfit)}
-                      </span>
-                    </>
+                <ScrollArea className="flex-1 min-h-[200px] max-h-[300px] rounded-lg border bg-card">
+                  {products
+                    .filter(p => p.quantity > 0)
+                    .filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()))
+                    .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+                    .map((product) => {
+                      const inCart = cart.find(c => c.productId === product.id);
+                      return (
+                        <div
+                          key={product.id}
+                          onClick={() => addToCart(product)}
+                          className={cn(
+                            "flex items-center gap-3 p-3 cursor-pointer transition-colors border-b last:border-b-0",
+                            inCart ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-secondary/50"
+                          )}
+                        >
+                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary font-bold text-sm shrink-0">
+                            {product.name.charAt(0)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm text-foreground truncate">{product.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Stock: {product.quantity} {product.unit} • {formatCurrency(product.purchasePrice)}
+                            </p>
+                          </div>
+                          {inCart ? (
+                            <Badge variant="default" className="shrink-0">{inCart.quantity}</Badge>
+                          ) : (
+                            <Button variant="outline" size="sm" className="shrink-0 h-8 w-8 p-0">
+                              <Plus className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  {products.filter(p => p.quantity > 0).filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase())).length === 0 && (
+                    <div className="p-6 text-center text-sm text-muted-foreground">Aucun produit disponible</div>
                   )}
-                </div>
+                </ScrollArea>
               </div>
-            )}
+
+              {/* Right: Cart & Payment */}
+              <div className="space-y-3 flex flex-col min-h-0">
+                <Label className="text-sm font-semibold flex items-center gap-2">
+                  <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+                  Panier {cart.length > 0 && <Badge variant="secondary">{cart.length}</Badge>}
+                </Label>
+
+                {cart.length === 0 ? (
+                  <div className="flex-1 min-h-[200px] rounded-lg border border-dashed flex items-center justify-center">
+                    <div className="text-center text-muted-foreground">
+                      <ShoppingCart className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                      <p className="text-sm">Cliquez sur un produit pour l'ajouter</p>
+                    </div>
+                  </div>
+                ) : (
+                  <ScrollArea className="flex-1 min-h-[150px] max-h-[200px] rounded-lg border">
+                    <div className="divide-y">
+                      {cart.map(item => (
+                        <div key={item.productId} className="p-3 space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium text-sm truncate">{item.productName}</span>
+                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeFromCart(item.productId)}>
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Qté (max: {item.availableStock})</Label>
+                              <Input
+                                type="number"
+                                min={1}
+                                max={item.availableStock}
+                                value={item.quantity}
+                                onChange={(e) => updateCartItem(item.productId, 'quantity', Number(e.target.value))}
+                                className="h-8 text-sm"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Prix unit. (FCFA)</Label>
+                              <Input
+                                type="number"
+                                value={item.unitPrice}
+                                onChange={(e) => updateCartItem(item.productId, 'unitPrice', Number(e.target.value))}
+                                className="h-8 text-sm"
+                              />
+                            </div>
+                          </div>
+                          <div className="text-xs flex justify-between">
+                            <span className="text-muted-foreground">= {formatCurrency(item.unitPrice * item.quantity)}</span>
+                            {isAdmin && (
+                              <span className={cn((item.unitPrice - item.purchasePrice) >= 0 ? 'text-success' : 'text-destructive')}>
+                                {formatCurrency((item.unitPrice - item.purchasePrice) * item.quantity)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+
+                {/* Payment Method */}
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Mode de paiement</Label>
+                  <Select value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(paymentMethodLabels).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Total */}
+                {cart.length > 0 && (
+                  <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 space-y-1">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Total:</span>
+                      <span className="font-bold text-xl">{formatCurrency(cartTotal)}</span>
+                    </div>
+                    {isAdmin && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-muted-foreground">Bénéfice:</span>
+                        <span className={cn("text-sm font-semibold", cartProfit >= 0 ? "text-success" : "text-destructive")}>
+                          {cartProfit >= 0 ? '+' : ''}{formatCurrency(cartProfit)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="border-t pt-4 mt-2">
             <Button variant="outline" onClick={() => setIsAddOpen(false)}>Annuler</Button>
             <Button variant="gradient" onClick={submitAdd} disabled={cart.length === 0}>
-              Enregistrer la vente
+              <ShoppingCart className="h-4 w-4 mr-2" />
+              Valider la vente {cart.length > 0 && `(${formatCurrency(cartTotal)})`}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -744,27 +778,44 @@ export default function Sales() {
       <Dialog open={isReceiptOpen} onOpenChange={setIsReceiptOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Vente enregistrée ✓</DialogTitle>
-            <DialogDescription>Souhaitez-vous générer un document ?</DialogDescription>
+            <DialogTitle className="flex items-center gap-2 text-success">
+              ✓ Vente enregistrée
+            </DialogTitle>
+            <DialogDescription>
+              Montant: <span className="font-semibold text-foreground">{receiptSale ? formatCurrency(receiptSale.totalAmount) : ''}</span> — Générez un document ou imprimez directement.
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3 py-4">
-            <Button variant="outline" className="w-full justify-start gap-3" onClick={() => { if (receiptSale) generateTicketPDF(receiptSale); setIsReceiptOpen(false); }}>
-              <Printer className="h-5 w-5" />
+          <div className="space-y-2 py-2">
+            <Button variant="outline" className="w-full justify-start gap-3 h-auto py-3" onClick={() => { if (receiptSale) generateTicketPDF(receiptSale); }}>
+              <Printer className="h-5 w-5 text-primary" />
               <div className="text-left">
                 <p className="font-medium">Ticket de caisse</p>
-                <p className="text-xs text-muted-foreground">Format compact pour imprimante</p>
+                <p className="text-xs text-muted-foreground">Format compact pour imprimante thermique</p>
               </div>
             </Button>
-            <Button variant="outline" className="w-full justify-start gap-3" onClick={() => { if (receiptSale) generateInvoicePDF(receiptSale); setIsReceiptOpen(false); }}>
-              <FileText className="h-5 w-5" />
+            <Button variant="outline" className="w-full justify-start gap-3 h-auto py-3" onClick={() => { if (receiptSale) generateInvoicePDF(receiptSale); }}>
+              <FileText className="h-5 w-5 text-primary" />
               <div className="text-left">
-                <p className="font-medium">Facture</p>
+                <p className="font-medium">Facture PDF</p>
                 <p className="text-xs text-muted-foreground">Document professionnel complet</p>
+              </div>
+            </Button>
+            <Button variant="default" className="w-full justify-start gap-3 h-auto py-3" onClick={() => {
+              if (receiptSale) {
+                generateTicketPDF(receiptSale);
+                toast.success('Ticket généré — lancement de l\'impression');
+              }
+              setIsReceiptOpen(false);
+            }}>
+              <Printer className="h-5 w-5" />
+              <div className="text-left">
+                <p className="font-medium">Imprimer le ticket</p>
+                <p className="text-xs opacity-80">Générer et imprimer directement</p>
               </div>
             </Button>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsReceiptOpen(false)}>Fermer</Button>
+            <Button variant="ghost" onClick={() => setIsReceiptOpen(false)}>Fermer sans imprimer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
