@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { FinancialEntry } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
+import { showRealtimeToast } from '@/hooks/use-realtime-toast';
 
 interface FinanceContextType {
   entries: FinancialEntry[];
@@ -44,6 +45,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       .channel('finances-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'financial_entries' }, () => {
         fetchEntries();
+        showRealtimeToast('Finances');
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };

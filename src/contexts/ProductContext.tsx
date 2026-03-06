@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { Product } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
+import { showRealtimeToast } from '@/hooks/use-realtime-toast';
 
 interface ProductContextType {
   products: Product[];
@@ -46,6 +47,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       .channel('products-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
         fetchProducts();
+        showRealtimeToast('Produits');
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };

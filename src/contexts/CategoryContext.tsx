@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { Category } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
+import { showRealtimeToast } from '@/hooks/use-realtime-toast';
 
 interface CategoryContextType {
   categories: Category[];
@@ -41,6 +42,7 @@ export function CategoryProvider({ children }: { children: ReactNode }) {
       .channel('categories-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => {
         fetchCategories();
+        showRealtimeToast('Catégories');
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };

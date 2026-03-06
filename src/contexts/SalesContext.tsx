@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { Sale, SaleItem, PaymentMethod } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
+import { showRealtimeToast } from '@/hooks/use-realtime-toast';
 
 interface SalesContextType {
   sales: Sale[];
@@ -79,6 +80,7 @@ export function SalesProvider({ children }: { children: ReactNode }) {
       .channel('sales-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'sales' }, () => {
         fetchSales();
+        showRealtimeToast('Ventes');
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'sale_items' }, () => {
         fetchSales();
