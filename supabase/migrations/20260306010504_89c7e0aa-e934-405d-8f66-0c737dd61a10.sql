@@ -1,0 +1,1 @@
+ALTER PUBLICATION supabase_realtime ADD TABLE public.categories, public.products, public.sales, public.sale_items, public.financial_entries, public.quotes, public.quote_items;

@@ -42,6 +42,13 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     fetchProducts();
+    const channel = supabase
+      .channel('products-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+        fetchProducts();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, [fetchProducts]);
 
   const addProduct = async (product: Product) => {
