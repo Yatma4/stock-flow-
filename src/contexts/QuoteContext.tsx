@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { Quote, QuoteItem, QuoteStatus } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
+import { showRealtimeToast } from '@/hooks/use-realtime-toast';
 
 interface QuoteContextType {
   quotes: Quote[];
@@ -78,6 +79,7 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
       .channel('quotes-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'quotes' }, () => {
         fetchQuotes();
+        showRealtimeToast('Devis');
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'quote_items' }, () => {
         fetchQuotes();
