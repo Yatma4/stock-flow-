@@ -74,6 +74,16 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     fetchQuotes();
+    const channel = supabase
+      .channel('quotes-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'quotes' }, () => {
+        fetchQuotes();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'quote_items' }, () => {
+        fetchQuotes();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, [fetchQuotes]);
 
   const addQuote = async (quote: Quote) => {

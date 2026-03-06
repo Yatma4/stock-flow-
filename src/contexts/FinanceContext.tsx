@@ -40,6 +40,13 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     fetchEntries();
+    const channel = supabase
+      .channel('finances-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'financial_entries' }, () => {
+        fetchEntries();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, [fetchEntries]);
 
   const addEntry = async (entry: FinancialEntry) => {

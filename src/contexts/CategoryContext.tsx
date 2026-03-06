@@ -37,6 +37,13 @@ export function CategoryProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     fetchCategories();
+    const channel = supabase
+      .channel('categories-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => {
+        fetchCategories();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, [fetchCategories]);
 
   const addCategory = async (category: Category) => {

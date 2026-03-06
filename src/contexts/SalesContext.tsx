@@ -75,6 +75,16 @@ export function SalesProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     fetchSales();
+    const channel = supabase
+      .channel('sales-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sales' }, () => {
+        fetchSales();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sale_items' }, () => {
+        fetchSales();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, [fetchSales]);
 
   const addSale = async (sale: Sale) => {
