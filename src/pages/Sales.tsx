@@ -319,57 +319,79 @@ export default function Sales() {
       </html>
     `;
     
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(ticketHTML);
-      printWindow.document.close();
+    // Use hidden iframe to avoid popup blockers
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+
+    const iframeDoc = iframe.contentWindow?.document;
+    if (iframeDoc) {
+      iframeDoc.open();
+      iframeDoc.write(ticketHTML);
+      iframeDoc.close();
+
+      iframe.onload = () => {
+        try {
+          iframe.contentWindow?.print();
+        } catch {
+          // Fallback: download as PDF
+          const doc = new jsPDF({ format: [80, 200], unit: 'mm' });
+          let y = 10;
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'bold');
+          doc.text('SALLEN TRADING', 40, y, { align: 'center' });
+          y += 5;
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'normal');
+          doc.text('AND SERVICE', 40, y, { align: 'center' });
+          y += 6;
+          doc.text('--------------------------------', 40, y, { align: 'center' });
+          y += 5;
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'bold');
+          doc.text('TICKET DE CAISSE', 40, y, { align: 'center' });
+          y += 6;
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'normal');
+          doc.text(`Date: ${format(new Date(sale.date), 'dd/MM/yyyy HH:mm')}`, 5, y);
+          y += 4;
+          doc.text(`Vendeur: ${sale.employeeName}`, 5, y);
+          y += 4;
+          doc.text(`Paiement: ${paymentMethodLabels[sale.paymentMethod]}`, 5, y);
+          y += 4;
+          doc.text('--------------------------------', 40, y, { align: 'center' });
+          y += 5;
+          sale.items.forEach(item => {
+            doc.text(item.productName, 5, y);
+            y += 4;
+            doc.text(`  ${item.quantity} x ${formatCurrencyPDF(item.unitPrice)}`, 5, y);
+            doc.text(formatCurrencyPDF(item.totalAmount), 75, y, { align: 'right' });
+            y += 5;
+          });
+          doc.text('--------------------------------', 40, y, { align: 'center' });
+          y += 5;
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(10);
+          doc.text('TOTAL:', 5, y);
+          doc.text(formatCurrencyPDF(sale.totalAmount), 75, y, { align: 'right' });
+          y += 6;
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'normal');
+          doc.text('Merci pour votre achat !', 40, y, { align: 'center' });
+          doc.save(`ticket_${sale.id.slice(0, 8)}.pdf`);
+          toast.info('Ticket téléchargé en PDF');
+        }
+        // Clean up iframe after a delay
+        setTimeout(() => document.body.removeChild(iframe), 1000);
+      };
     } else {
-      // Fallback: télécharger en PDF si popup bloqué
-      const doc = new jsPDF({ format: [80, 200], unit: 'mm' });
-      let y = 10;
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('SALLEN TRADING', 40, y, { align: 'center' });
-      y += 5;
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.text('AND SERVICE', 40, y, { align: 'center' });
-      y += 6;
-      doc.text('--------------------------------', 40, y, { align: 'center' });
-      y += 5;
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
-      doc.text('TICKET DE CAISSE', 40, y, { align: 'center' });
-      y += 6;
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Date: ${format(new Date(sale.date), 'dd/MM/yyyy HH:mm')}`, 5, y);
-      y += 4;
-      doc.text(`Vendeur: ${sale.employeeName}`, 5, y);
-      y += 4;
-      doc.text(`Paiement: ${paymentMethodLabels[sale.paymentMethod]}`, 5, y);
-      y += 4;
-      doc.text('--------------------------------', 40, y, { align: 'center' });
-      y += 5;
-      sale.items.forEach(item => {
-        doc.text(item.productName, 5, y);
-        y += 4;
-        doc.text(`  ${item.quantity} x ${formatCurrencyPDF(item.unitPrice)}`, 5, y);
-        doc.text(formatCurrencyPDF(item.totalAmount), 75, y, { align: 'right' });
-        y += 5;
-      });
-      doc.text('--------------------------------', 40, y, { align: 'center' });
-      y += 5;
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.text('TOTAL:', 5, y);
-      doc.text(formatCurrencyPDF(sale.totalAmount), 75, y, { align: 'right' });
-      y += 6;
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.text('Merci pour votre achat !', 40, y, { align: 'center' });
-      doc.save(`ticket_${sale.id.slice(0, 8)}.pdf`);
-      toast.info('Popup bloqué — ticket téléchargé en PDF');
+      document.body.removeChild(iframe);
+      toast.error('Impossible de générer le ticket');
     }
   };
 
