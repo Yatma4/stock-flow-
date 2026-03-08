@@ -5,7 +5,7 @@ import { showRealtimeToast } from '@/hooks/use-realtime-toast';
 
 interface ProductContextType {
   products: Product[];
-  addProduct: (product: Product) => void;
+  addProduct: (product: Product) => Promise<boolean>;
   updateProduct: (productId: string, data: Partial<Product>) => void;
   deleteProduct: (productId: string) => void;
   updateStock: (productId: string, quantityChange: number) => void;

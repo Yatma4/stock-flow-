@@ -5,7 +5,7 @@ import { showRealtimeToast } from '@/hooks/use-realtime-toast';
 
 interface CategoryContextType {
   categories: Category[];
-  addCategory: (category: Category) => void;
+  addCategory: (category: Category) => Promise<boolean>;
   updateCategory: (id: string, data: Partial<Category>) => void;
   deleteCategory: (id: string) => void;
   loading: boolean;

@@ -140,7 +140,7 @@ export default function Products() {
     setIsDeleteOpen(true);
   };
 
-  const submitAdd = () => {
+  const submitAdd = async () => {
     if (!formData.name || !formData.categoryId) {
       toast.error('Veuillez remplir tous les champs obligatoires');
       return;
@@ -151,7 +151,11 @@ export default function Products() {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-    addProduct(newProduct);
+    const created = await addProduct(newProduct);
+    if (!created) {
+      toast.error('Échec de création du produit. Vérifiez la catégorie puis réessayez.');
+      return;
+    }
     setIsAddOpen(false);
     toast.success(`Produit "${formData.name}" ajouté avec succès`);
   };
@@ -174,7 +178,7 @@ export default function Products() {
     toast.success(`Produit "${selectedProduct.name}" supprimé`);
   };
 
-  const handleAddCategory = () => {
+  const handleAddCategory = async () => {
     if (!categoryForm.name) {
       toast.error('Le nom de la catégorie est requis');
       return;
@@ -183,10 +187,14 @@ export default function Products() {
       updateCategory(editingCategory.id, categoryForm);
       toast.success(`Catégorie "${categoryForm.name}" modifiée`);
     } else {
-      addCategory({
+      const created = await addCategory({
         id: crypto.randomUUID(),
         ...categoryForm,
       });
+      if (!created) {
+        toast.error('Échec de création de la catégorie');
+        return;
+      }
       toast.success(`Catégorie "${categoryForm.name}" ajoutée`);
     }
     setCategoryForm({ name: '', description: '', color: '#2DD4BF' });
@@ -258,7 +266,7 @@ export default function Products() {
                 Gérer catégories
               </Button>
             )}
-            <Button variant="gradient" onClick={handleAdd}>
+            <Button variant="gradient" onClick={() => void handleAdd()}>
               <Plus className="mr-2 h-4 w-4" />
               Ajouter un produit
             </Button>
