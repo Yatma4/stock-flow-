@@ -35,6 +35,7 @@ import {
   Download,
   Upload,
   DatabaseBackup,
+  Archive,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -89,6 +90,9 @@ export default function Settings() {
 
   const [isSessionsOpen, setIsSessionsOpen] = useState(false);
   const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
+  const [isArchiveOpen, setIsArchiveOpen] = useState(false);
+  const [archivePassword, setArchivePassword] = useState('');
+  const [archivePasswordError, setArchivePasswordError] = useState('');
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [isRecoverySettingsOpen, setIsRecoverySettingsOpen] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
@@ -170,6 +174,35 @@ export default function Settings() {
     } catch (error) {
       console.error('Error deleting all data:', error);
       toast.error('Erreur lors de la suppression des données');
+    }
+  };
+
+  const handleArchiveData = async () => {
+    if (archivePassword !== getDeletePassword()) {
+      setArchivePasswordError('Mot de passe incorrect');
+      return;
+    }
+
+    try {
+      await supabase.from('sale_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('sales').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('quote_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('quotes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('financial_entries').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+
+      ['app_sales', 'app_finances', 'app_reports'].forEach(key => localStorage.removeItem(key));
+
+      setIsArchiveOpen(false);
+      setArchivePassword('');
+      setArchivePasswordError('');
+      toast.success('Ventes et finances archivées — les produits sont conservés');
+
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } catch (error) {
+      console.error('Error archiving data:', error);
+      toast.error("Erreur lors de l'archivage des données");
     }
   };
 
@@ -609,6 +642,24 @@ export default function Settings() {
               <Separator />
               <div className="flex items-center justify-between">
                 <div>
+                  <p className="font-medium text-foreground">Archiver ventes et finances</p>
+                  <p className="text-sm text-muted-foreground">
+                    Supprime les ventes, devis et finances — les produits et catégories sont conservés
+                  </p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setIsArchiveOpen(true)}
+                  className="border-orange-500 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950"
+                >
+                  <Archive className="mr-2 h-4 w-4" />
+                  Archiver
+                </Button>
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
                   <p className="font-medium text-foreground">Supprimer toutes les données</p>
                   <p className="text-sm text-muted-foreground">
                     Supprime tous les produits, ventes, finances, catégories et rapports
@@ -731,7 +782,52 @@ export default function Settings() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Change Delete Password Dialog */}
+      {/* Archive Data Confirmation */}
+      <AlertDialog open={isArchiveOpen} onOpenChange={setIsArchiveOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archiver les ventes et finances ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action supprimera toutes les ventes, devis et finances. 
+              Les produits et catégories seront conservés.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4 space-y-2">
+            <Label htmlFor="archive-password">Mot de passe de suppression</Label>
+            <Input
+              id="archive-password"
+              type="password"
+              placeholder="Entrez le mot de passe spécial"
+              value={archivePassword}
+              onChange={(e) => {
+                setArchivePassword(e.target.value);
+                setArchivePasswordError('');
+              }}
+            />
+            {archivePasswordError && (
+              <p className="text-sm text-destructive">{archivePasswordError}</p>
+            )}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setArchivePassword('');
+              setArchivePasswordError('');
+            }}>
+              Annuler
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => {
+                e.preventDefault();
+                handleArchiveData();
+              }}
+              className="bg-orange-600 text-white hover:bg-orange-700"
+            >
+              Oui, archiver
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Dialog open={isChangePasswordOpen} onOpenChange={setIsChangePasswordOpen}>
         <DialogContent>
           <DialogHeader>
