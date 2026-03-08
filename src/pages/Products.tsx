@@ -31,14 +31,14 @@ import {
 import { useProducts } from '@/contexts/ProductContext';
 import { useCategories } from '@/contexts/CategoryContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { Plus, Search, Filter, Edit, Trash2, Tag } from 'lucide-react';
+import { Plus, Search, Filter, Edit, Trash2, Tag, PackagePlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Product, Category } from '@/types';
 import { formatCurrency } from '@/lib/currency';
 
 export default function Products() {
-  const { products, addProduct, updateProduct, deleteProduct } = useProducts();
+  const { products, addProduct, updateProduct, deleteProduct, updateStock } = useProducts();
   const { categories, addCategory, updateCategory, deleteCategory } = useCategories();
   const { currentUser } = useAuth();
   const isAdmin = currentUser?.role === 'admin';
@@ -68,6 +68,9 @@ export default function Products() {
     color: '#2DD4BF',
   });
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [isStockOpen, setIsStockOpen] = useState(false);
+  const [stockProduct, setStockProduct] = useState<Product | null>(null);
+  const [stockQuantity, setStockQuantity] = useState(0);
 
   // Handle highlighted product or lowstock filter from URL
   useEffect(() => {
@@ -202,6 +205,23 @@ export default function Products() {
       color: category.color,
     });
     setIsCategoryOpen(true);
+  };
+
+  const handleStockEntry = (product: Product) => {
+    setStockProduct(product);
+    setStockQuantity(0);
+    setIsStockOpen(true);
+  };
+
+  const submitStockEntry = () => {
+    if (!stockProduct || stockQuantity === 0) {
+      toast.error('Veuillez entrer une quantité valide');
+      return;
+    }
+    updateStock(stockProduct.id, stockQuantity);
+    setIsStockOpen(false);
+    const action = stockQuantity > 0 ? 'ajouté' : 'retiré';
+    toast.success(`${Math.abs(stockQuantity)} ${stockProduct.unit}(s) ${action} pour "${stockProduct.name}"`);
   };
 
   const handleDeleteCategory = (categoryId: string) => {
@@ -352,8 +372,34 @@ export default function Products() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
+                        {!isAdmin && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-primary hover:text-primary"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStockEntry(product);
+                            }}
+                            title="Entrée de stock"
+                          >
+                            <PackagePlus className="h-4 w-4" />
+                          </Button>
+                        )}
                         {isAdmin && (
                           <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-primary hover:text-primary"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleStockEntry(product);
+                              }}
+                              title="Entrée de stock"
+                            >
+                              <PackagePlus className="h-4 w-4" />
+                            </Button>
                             <Button 
                               variant="ghost" 
                               size="icon" 
