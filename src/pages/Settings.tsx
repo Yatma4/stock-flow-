@@ -35,6 +35,7 @@ import {
   Download,
   Upload,
   DatabaseBackup,
+  Archive,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -89,6 +90,9 @@ export default function Settings() {
 
   const [isSessionsOpen, setIsSessionsOpen] = useState(false);
   const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
+  const [isArchiveOpen, setIsArchiveOpen] = useState(false);
+  const [archivePassword, setArchivePassword] = useState('');
+  const [archivePasswordError, setArchivePasswordError] = useState('');
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [isRecoverySettingsOpen, setIsRecoverySettingsOpen] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
