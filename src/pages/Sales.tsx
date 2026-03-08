@@ -270,78 +270,107 @@ export default function Sales() {
   };
 
   const generateTicketPDF = (sale: Sale) => {
-    const doc = new jsPDF({ format: [80, 200], unit: 'mm' });
-    let y = 10;
+    const ticketHTML = `
+      <html>
+      <head>
+        <title>Ticket ${sale.id.slice(0, 8)}</title>
+        <style>
+          @page { size: 80mm auto; margin: 0; }
+          body { font-family: 'Courier New', monospace; width: 72mm; margin: 4mm; font-size: 12px; color: #000; }
+          .center { text-align: center; }
+          .right { text-align: right; }
+          .bold { font-weight: bold; }
+          .title { font-size: 16px; font-weight: bold; }
+          .subtitle { font-size: 10px; }
+          .separator { text-align: center; letter-spacing: 2px; margin: 4px 0; }
+          .item-row { display: flex; justify-content: space-between; }
+          .total-row { display: flex; justify-content: space-between; font-weight: bold; font-size: 14px; margin-top: 4px; }
+          .info { font-size: 11px; margin: 2px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="center title">SALLEN TRADING</div>
+        <div class="center subtitle">AND SERVICE</div>
+        <div class="separator">--------------------------------</div>
+        <div class="center bold" style="font-size:13px;">TICKET DE CAISSE</div>
+        <div class="separator">--------------------------------</div>
+        <div class="info">Date: ${format(new Date(sale.date), 'dd/MM/yyyy HH:mm')}</div>
+        <div class="info">Vendeur: ${sale.employeeName}</div>
+        <div class="info">Paiement: ${paymentMethodLabels[sale.paymentMethod]}</div>
+        <div class="separator">--------------------------------</div>
+        ${sale.items.map(item => `
+          <div style="margin: 4px 0;">
+            <div>${item.productName}</div>
+            <div class="item-row">
+              <span>&nbsp;&nbsp;${item.quantity} x ${formatCurrencyPDF(item.unitPrice)}</span>
+              <span>${formatCurrencyPDF(item.totalAmount)}</span>
+            </div>
+          </div>
+        `).join('')}
+        <div class="separator">--------------------------------</div>
+        <div class="total-row">
+          <span>TOTAL:</span>
+          <span>${formatCurrencyPDF(sale.totalAmount)}</span>
+        </div>
+        <div class="separator">--------------------------------</div>
+        <div class="center" style="margin-top:8px;">Merci pour votre achat !</div>
+        <script>window.onload = function() { window.print(); }<\/script>
+      </body>
+      </html>
+    `;
     
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text('SALLEN TRADING', 40, y, { align: 'center' });
-    y += 5;
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.text('AND SERVICE', 40, y, { align: 'center' });
-    y += 6;
-    doc.text('--------------------------------', 40, y, { align: 'center' });
-    y += 5;
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.text('TICKET DE CAISSE', 40, y, { align: 'center' });
-    y += 6;
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Date: ${format(new Date(sale.date), 'dd/MM/yyyy HH:mm')}`, 5, y);
-    y += 4;
-    doc.text(`Vendeur: ${sale.employeeName}`, 5, y);
-    y += 4;
-    doc.text(`Paiement: ${paymentMethodLabels[sale.paymentMethod]}`, 5, y);
-    y += 4;
-    doc.text('--------------------------------', 40, y, { align: 'center' });
-    y += 5;
-
-    sale.items.forEach(item => {
-      doc.text(item.productName, 5, y);
-      y += 4;
-      doc.text(`  ${item.quantity} x ${formatCurrencyPDF(item.unitPrice)}`, 5, y);
-      doc.text(formatCurrencyPDF(item.totalAmount), 75, y, { align: 'right' });
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(ticketHTML);
+      printWindow.document.close();
+    } else {
+      // Fallback: télécharger en PDF si popup bloqué
+      const doc = new jsPDF({ format: [80, 200], unit: 'mm' });
+      let y = 10;
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('SALLEN TRADING', 40, y, { align: 'center' });
       y += 5;
-    });
-
-    doc.text('--------------------------------', 40, y, { align: 'center' });
-    y += 5;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.text('TOTAL:', 5, y);
-    doc.text(formatCurrencyPDF(sale.totalAmount), 75, y, { align: 'right' });
-    y += 6;
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Merci pour votre achat !', 40, y, { align: 'center' });
-
-    const pdfBlob = doc.output('blob');
-    const pdfUrl = URL.createObjectURL(pdfBlob);
-    const printWindow = window.open(pdfUrl, '_blank');
-
-    if (!printWindow) {
-      URL.revokeObjectURL(pdfUrl);
-      toast.error("Veuillez autoriser les popups pour imprimer le ticket");
-      return;
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text('AND SERVICE', 40, y, { align: 'center' });
+      y += 6;
+      doc.text('--------------------------------', 40, y, { align: 'center' });
+      y += 5;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('TICKET DE CAISSE', 40, y, { align: 'center' });
+      y += 6;
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Date: ${format(new Date(sale.date), 'dd/MM/yyyy HH:mm')}`, 5, y);
+      y += 4;
+      doc.text(`Vendeur: ${sale.employeeName}`, 5, y);
+      y += 4;
+      doc.text(`Paiement: ${paymentMethodLabels[sale.paymentMethod]}`, 5, y);
+      y += 4;
+      doc.text('--------------------------------', 40, y, { align: 'center' });
+      y += 5;
+      sale.items.forEach(item => {
+        doc.text(item.productName, 5, y);
+        y += 4;
+        doc.text(`  ${item.quantity} x ${formatCurrencyPDF(item.unitPrice)}`, 5, y);
+        doc.text(formatCurrencyPDF(item.totalAmount), 75, y, { align: 'right' });
+        y += 5;
+      });
+      doc.text('--------------------------------', 40, y, { align: 'center' });
+      y += 5;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text('TOTAL:', 5, y);
+      doc.text(formatCurrencyPDF(sale.totalAmount), 75, y, { align: 'right' });
+      y += 6;
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Merci pour votre achat !', 40, y, { align: 'center' });
+      doc.save(`ticket_${sale.id.slice(0, 8)}.pdf`);
+      toast.info('Popup bloqué — ticket téléchargé en PDF');
     }
-
-    const cleanup = () => {
-      URL.revokeObjectURL(pdfUrl);
-    };
-
-    printWindow.addEventListener('load', () => {
-      printWindow.focus();
-      printWindow.print();
-    });
-
-    printWindow.addEventListener('afterprint', () => {
-      cleanup();
-      printWindow.close();
-    }, { once: true });
-
-    setTimeout(cleanup, 60000);
   };
 
   const generateInvoicePDF = (sale: Sale) => {
