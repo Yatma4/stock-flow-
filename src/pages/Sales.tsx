@@ -317,28 +317,31 @@ export default function Sales() {
     doc.setFont('helvetica', 'normal');
     doc.text('Merci pour votre achat !', 40, y, { align: 'center' });
 
-    const pdfDataUri = doc.output('datauristring');
-    const printIframe = document.createElement('iframe');
-    printIframe.style.position = 'fixed';
-    printIframe.style.top = '-10000px';
-    printIframe.style.left = '-10000px';
-    printIframe.style.width = '0';
-    printIframe.style.height = '0';
-    document.body.appendChild(printIframe);
-    printIframe.src = pdfDataUri;
-    printIframe.onload = () => {
-      setTimeout(() => {
-        try {
-          printIframe.contentWindow?.print();
-        } catch {
-          // Fallback: télécharger si l'impression échoue
-          doc.save(`ticket_${sale.id.slice(0, 8)}.pdf`);
-        }
-        setTimeout(() => {
-          document.body.removeChild(printIframe);
-        }, 1000);
-      }, 500);
+    const pdfBlob = doc.output('blob');
+    const pdfUrl = URL.createObjectURL(pdfBlob);
+    const printWindow = window.open(pdfUrl, '_blank');
+
+    if (!printWindow) {
+      URL.revokeObjectURL(pdfUrl);
+      toast.error("Veuillez autoriser les popups pour imprimer le ticket");
+      return;
+    }
+
+    const cleanup = () => {
+      URL.revokeObjectURL(pdfUrl);
     };
+
+    printWindow.addEventListener('load', () => {
+      printWindow.focus();
+      printWindow.print();
+    });
+
+    printWindow.addEventListener('afterprint', () => {
+      cleanup();
+      printWindow.close();
+    }, { once: true });
+
+    setTimeout(cleanup, 60000);
   };
 
   const generateInvoicePDF = (sale: Sale) => {
