@@ -215,9 +215,8 @@ export default function Sales() {
       linkItemId: saleId,
     });
 
-    // Show receipt dialog
-    setReceiptSale(newSale);
-    setIsReceiptOpen(true);
+    // Auto-print ticket
+    generateTicketPDF(newSale);
   };
 
   const handleCancel = (sale: Sale) => {
