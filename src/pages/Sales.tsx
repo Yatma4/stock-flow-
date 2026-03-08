@@ -317,16 +317,28 @@ export default function Sales() {
     doc.setFont('helvetica', 'normal');
     doc.text('Merci pour votre achat !', 40, y, { align: 'center' });
 
-    doc.autoPrint();
-    const pdfBlob = doc.output('blob');
-    const url = URL.createObjectURL(pdfBlob);
-    const printWindow = window.open(url);
-    if (printWindow) {
-      printWindow.onafterprint = () => {
-        printWindow.close();
-        URL.revokeObjectURL(url);
-      };
-    }
+    const pdfDataUri = doc.output('datauristring');
+    const printIframe = document.createElement('iframe');
+    printIframe.style.position = 'fixed';
+    printIframe.style.top = '-10000px';
+    printIframe.style.left = '-10000px';
+    printIframe.style.width = '0';
+    printIframe.style.height = '0';
+    document.body.appendChild(printIframe);
+    printIframe.src = pdfDataUri;
+    printIframe.onload = () => {
+      setTimeout(() => {
+        try {
+          printIframe.contentWindow?.print();
+        } catch {
+          // Fallback: télécharger si l'impression échoue
+          doc.save(`ticket_${sale.id.slice(0, 8)}.pdf`);
+        }
+        setTimeout(() => {
+          document.body.removeChild(printIframe);
+        }, 1000);
+      }, 500);
+    };
   };
 
   const generateInvoicePDF = (sale: Sale) => {
