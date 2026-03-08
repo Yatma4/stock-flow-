@@ -32,6 +32,9 @@ import {
   Monitor,
   Trash2,
   KeyRound,
+  Download,
+  Upload,
+  DatabaseBackup,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
