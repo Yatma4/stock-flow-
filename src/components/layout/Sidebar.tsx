@@ -17,7 +17,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const navigation = [
   { name: 'Tableau de bord', href: '/', icon: LayoutDashboard, adminOnly: true },
-  { name: 'Produits', href: '/products', icon: Package, adminOnly: true },
+  { name: 'Produits', href: '/products', icon: Package, adminOnly: false },
   { name: 'Ventes', href: '/sales', icon: ShoppingCart, adminOnly: false },
   { name: 'Devis', href: '/quotes', icon: FileText, adminOnly: false },
   { name: 'Finances', href: '/finances', icon: Wallet, adminOnly: true },

@@ -721,7 +721,9 @@ export default function Settings() {
                 </div>
                 <div>
                   <p className="font-medium text-foreground">Cet appareil</p>
-                  <p className="text-xs text-muted-foreground">Chrome sur Windows • Session actuelle</p>
+                  <p className="text-xs text-muted-foreground">
+                    Connecté en tant que {currentUser?.name || 'Inconnu'} • {currentUser?.role === 'admin' ? 'Administrateur' : 'Employé'}
+                  </p>
                 </div>
               </div>
               <span className="text-xs text-success font-medium px-2 py-1 rounded-full bg-success/10">
