@@ -177,6 +177,35 @@ export default function Settings() {
     }
   };
 
+  const handleArchiveData = async () => {
+    if (archivePassword !== getDeletePassword()) {
+      setArchivePasswordError('Mot de passe incorrect');
+      return;
+    }
+
+    try {
+      await supabase.from('sale_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('sales').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('quote_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('quotes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('financial_entries').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+
+      ['app_sales', 'app_finances', 'app_reports'].forEach(key => localStorage.removeItem(key));
+
+      setIsArchiveOpen(false);
+      setArchivePassword('');
+      setArchivePasswordError('');
+      toast.success('Ventes et finances archivées — les produits sont conservés');
+
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } catch (error) {
+      console.error('Error archiving data:', error);
+      toast.error("Erreur lors de l'archivage des données");
+    }
+  };
+
   const handleChangeDeletePassword = () => {
     if (currentDeletePassword !== getDeletePassword()) {
       setChangePasswordError('Mot de passe actuel incorrect');
