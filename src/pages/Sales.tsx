@@ -317,7 +317,16 @@ export default function Sales() {
     doc.setFont('helvetica', 'normal');
     doc.text('Merci pour votre achat !', 40, y, { align: 'center' });
 
-    doc.save(`ticket_${sale.id.slice(0, 8)}.pdf`);
+    doc.autoPrint();
+    const pdfBlob = doc.output('blob');
+    const url = URL.createObjectURL(pdfBlob);
+    const printWindow = window.open(url);
+    if (printWindow) {
+      printWindow.onafterprint = () => {
+        printWindow.close();
+        URL.revokeObjectURL(url);
+      };
+    }
   };
 
   const generateInvoicePDF = (sale: Sale) => {
