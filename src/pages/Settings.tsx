@@ -128,8 +128,9 @@ export default function Settings() {
   };
 
   const handleLogoutAllSessions = () => {
+    logout();
     setIsSessionsOpen(false);
-    toast.success('Toutes les sessions ont été déconnectées');
+    toast.success('Session déconnectée avec succès');
   };
 
   const getDeletePassword = () => {
