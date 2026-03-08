@@ -324,6 +324,7 @@ export default function Settings() {
   };
 
 
+  const updateCompany = (field: keyof AppSettings['company'], value: string) => {
     setSettings(prev => ({
       ...prev,
       company: { ...prev.company, [field]: value },
