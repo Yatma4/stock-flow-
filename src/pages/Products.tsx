@@ -184,7 +184,7 @@ export default function Products() {
       toast.success(`Catégorie "${categoryForm.name}" modifiée`);
     } else {
       addCategory({
-        id: Date.now().toString(),
+        id: crypto.randomUUID(),
         ...categoryForm,
       });
       toast.success(`Catégorie "${categoryForm.name}" ajoutée`);
