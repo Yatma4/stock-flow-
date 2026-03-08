@@ -81,7 +81,7 @@ const defaultSettings: AppSettings = {
 };
 
 export default function Settings() {
-  const { currentUser } = useAuth();
+  const { currentUser, logout } = useAuth();
   const isAdmin = currentUser?.role === 'admin';
 
   const [settings, setSettings] = useState<AppSettings>(() => {
