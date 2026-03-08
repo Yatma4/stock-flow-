@@ -719,30 +719,53 @@ export default function Settings() {
 
       {/* Sessions Dialog */}
       <Dialog open={isSessionsOpen} onOpenChange={setIsSessionsOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Sessions actives</DialogTitle>
             <DialogDescription>
-              Gérez vos sessions connectées sur différents appareils.
+              Visualisez tous les appareils actuellement connectés.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="flex items-center justify-between p-3 rounded-lg border bg-secondary/30">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                  <Monitor className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="font-medium text-foreground">Cet appareil</p>
-                  <p className="text-xs text-muted-foreground">
-                    Connecté en tant que {currentUser?.name || 'Inconnu'} • {currentUser?.role === 'admin' ? 'Administrateur' : 'Employé'}
-                  </p>
-                </div>
-              </div>
-              <span className="text-xs text-success font-medium px-2 py-1 rounded-full bg-success/10">
-                Actif
-              </span>
-            </div>
+          <div className="space-y-3 py-4 max-h-[400px] overflow-y-auto">
+            {loadingSessions ? (
+              <p className="text-center text-muted-foreground py-4">Chargement...</p>
+            ) : activeSessions.length === 0 ? (
+              <p className="text-center text-muted-foreground py-4">Aucune session active</p>
+            ) : (
+              activeSessions.map((session) => {
+                const currentToken = getSessionToken();
+                const isCurrentSession = session.session_token === currentToken;
+                const DeviceIcon = session.device_info === 'Mobile' ? Smartphone : session.device_info === 'Tablette' ? Tablet : Monitor;
+
+                return (
+                  <div
+                    key={session.id}
+                    className={`flex items-center justify-between p-3 rounded-lg border ${isCurrentSession ? 'bg-primary/5 border-primary/20' : 'bg-secondary/30'}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                        <DeviceIcon className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-foreground text-sm">
+                          {session.user_name}
+                          {isCurrentSession && <span className="ml-2 text-xs text-primary">(cet appareil)</span>}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {session.browser} sur {session.os} • {session.device_info}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {session.user_role === 'admin' ? 'Administrateur' : 'Employé'} • Actif {formatDistanceToNow(new Date(session.last_active_at), { addSuffix: true, locale: fr })}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-xs text-success font-medium px-2 py-1 rounded-full bg-success/10">
+                      Actif
+                    </span>
+                  </div>
+                );
+              })
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsSessionsOpen(false)}>
