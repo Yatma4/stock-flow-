@@ -93,6 +93,7 @@ export default function Settings() {
   const [isArchiveOpen, setIsArchiveOpen] = useState(false);
   const [archivePassword, setArchivePassword] = useState('');
   const [archivePasswordError, setArchivePasswordError] = useState('');
+  const [archiveExportFirst, setArchiveExportFirst] = useState(true);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [isRecoverySettingsOpen, setIsRecoverySettingsOpen] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
@@ -184,6 +185,11 @@ export default function Settings() {
     }
 
     try {
+      // Export before archiving if option is checked
+      if (archiveExportFirst) {
+        await handleExportData();
+      }
+
       await supabase.from('sale_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       await supabase.from('sales').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       await supabase.from('quote_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
@@ -807,6 +813,16 @@ export default function Settings() {
             {archivePasswordError && (
               <p className="text-sm text-destructive">{archivePasswordError}</p>
             )}
+          <div className="flex items-center space-x-2 pb-2">
+            <Checkbox
+              id="archive-export"
+              checked={archiveExportFirst}
+              onCheckedChange={(checked) => setArchiveExportFirst(checked === true)}
+            />
+            <Label htmlFor="archive-export" className="text-sm font-normal cursor-pointer">
+              Exporter une sauvegarde avant l'archivage
+            </Label>
+          </div>
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => {
