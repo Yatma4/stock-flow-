@@ -32,6 +32,9 @@ import {
   Monitor,
   Trash2,
   KeyRound,
+  Download,
+  Upload,
+  DatabaseBackup,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -234,6 +237,93 @@ export default function Settings() {
     toast.success('Question de récupération mise à jour');
   };
 
+  const handleExportData = async () => {
+    try {
+      const [categories, products, sales, saleItems, quotes, quoteItems, finances] = await Promise.all([
+        supabase.from('categories').select('*'),
+        supabase.from('products').select('*'),
+        supabase.from('sales').select('*'),
+        supabase.from('sale_items').select('*'),
+        supabase.from('quotes').select('*'),
+        supabase.from('quote_items').select('*'),
+        supabase.from('financial_entries').select('*'),
+      ]);
+
+      const backup = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        data: {
+          categories: categories.data || [],
+          products: products.data || [],
+          sales: sales.data || [],
+          sale_items: saleItems.data || [],
+          quotes: quotes.data || [],
+          quote_items: quoteItems.data || [],
+          financial_entries: finances.data || [],
+        },
+      };
+
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sauvegarde_${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Données exportées avec succès');
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error("Erreur lors de l'exportation");
+    }
+  };
+
+  const handleImportData = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    try {
+      const text = await file.text();
+      const backup = JSON.parse(text);
+
+      if (!backup.data || !backup.version) {
+        toast.error('Fichier de sauvegarde invalide');
+        return;
+      }
+
+      const confirmed = window.confirm(
+        'Cette action remplacera toutes les données actuelles par celles du fichier. Continuer ?'
+      );
+      if (!confirmed) return;
+
+      // Clear existing data (respect FK order)
+      await supabase.from('sale_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('sales').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('quote_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('quotes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('financial_entries').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('products').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('categories').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+
+      // Insert in correct order
+      const d = backup.data;
+      if (d.categories?.length) await supabase.from('categories').insert(d.categories);
+      if (d.products?.length) await supabase.from('products').insert(d.products);
+      if (d.sales?.length) await supabase.from('sales').insert(d.sales);
+      if (d.sale_items?.length) await supabase.from('sale_items').insert(d.sale_items);
+      if (d.quotes?.length) await supabase.from('quotes').insert(d.quotes);
+      if (d.quote_items?.length) await supabase.from('quote_items').insert(d.quote_items);
+      if (d.financial_entries?.length) await supabase.from('financial_entries').insert(d.financial_entries);
+
+      toast.success('Données restaurées avec succès');
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (error) {
+      console.error('Import error:', error);
+      toast.error('Erreur lors de l\'importation. Vérifiez le fichier.');
+    }
+  };
+
+
   const updateCompany = (field: keyof AppSettings['company'], value: string) => {
     setSettings(prev => ({
       ...prev,
@@ -412,6 +502,60 @@ export default function Settings() {
             </div>
           </div>
         </Card>
+
+        {/* Backup & Restore */}
+        {isAdmin && (
+          <Card className="p-6 shadow-card">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                <DatabaseBackup className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground">Sauvegarde et restauration</h3>
+                <p className="text-sm text-muted-foreground">
+                  Exportez ou importez toutes les données de l'application
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-foreground">Exporter les données</p>
+                  <p className="text-sm text-muted-foreground">
+                    Téléchargez un fichier JSON contenant toutes vos données
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" onClick={handleExportData}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Exporter
+                </Button>
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-foreground">Importer les données</p>
+                  <p className="text-sm text-muted-foreground">
+                    Restaurez vos données depuis un fichier de sauvegarde
+                  </p>
+                </div>
+                <div>
+                  <input
+                    type="file"
+                    accept=".json"
+                    id="import-file"
+                    className="hidden"
+                    onChange={handleImportData}
+                  />
+                  <Button variant="outline" size="sm" onClick={() => document.getElementById('import-file')?.click()}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Importer
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Admin: Delete All Data */}
         {isAdmin && (
