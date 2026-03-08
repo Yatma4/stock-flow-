@@ -266,7 +266,7 @@ export default function Products() {
                 Gérer catégories
               </Button>
             )}
-            <Button variant="gradient" onClick={() => void handleAdd()}>
+            <Button variant="gradient" onClick={handleAdd}>
               <Plus className="mr-2 h-4 w-4" />
               Ajouter un produit
             </Button>
