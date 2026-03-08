@@ -95,6 +95,8 @@ export default function Settings() {
   });
 
   const [isSessionsOpen, setIsSessionsOpen] = useState(false);
+  const [activeSessions, setActiveSessions] = useState<any[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState(false);
   const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
   const [isArchiveOpen, setIsArchiveOpen] = useState(false);
   const [archivePassword, setArchivePassword] = useState('');
