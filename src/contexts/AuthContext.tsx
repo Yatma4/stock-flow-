@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { User } from '@/types';
+import { registerSession, removeSession, removeAllSessions } from '@/lib/session';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -72,16 +73,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [currentUser]);
 
   const login = (username: string, code: string): boolean => {
-    // Find user by name (case insensitive)
     const user = users.find(u => u.name.toLowerCase() === username.toLowerCase());
     if (user && userCodes[user.id] === code) {
       setCurrentUser(user);
+      registerSession(user.id, user.name, user.role);
       return true;
     }
     return false;
   };
 
   const logout = () => {
+    removeSession();
     setCurrentUser(null);
   };
 
@@ -89,7 +91,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (userCodes[userId] === code) {
       const user = users.find(u => u.id === userId);
       if (user) {
+        removeSession();
         setCurrentUser(user);
+        registerSession(user.id, user.name, user.role);
         return true;
       }
     }
