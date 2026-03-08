@@ -31,6 +31,8 @@ import {
   Shield,
   Save,
   Monitor,
+  Smartphone,
+  Tablet,
   Trash2,
   KeyRound,
   Download,
@@ -41,6 +43,9 @@ import {
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchActiveSessions, removeAllSessions, getSessionToken } from '@/lib/session';
+import { formatDistanceToNow } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 const SETTINGS_KEY = 'app_settings';
 const DELETE_PASSWORD_KEY = 'app_delete_password';
