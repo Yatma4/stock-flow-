@@ -642,6 +642,24 @@ export default function Settings() {
               <Separator />
               <div className="flex items-center justify-between">
                 <div>
+                  <p className="font-medium text-foreground">Archiver ventes et finances</p>
+                  <p className="text-sm text-muted-foreground">
+                    Supprime les ventes, devis et finances — les produits et catégories sont conservés
+                  </p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setIsArchiveOpen(true)}
+                  className="border-orange-500 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950"
+                >
+                  <Archive className="mr-2 h-4 w-4" />
+                  Archiver
+                </Button>
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
                   <p className="font-medium text-foreground">Supprimer toutes les données</p>
                   <p className="text-sm text-muted-foreground">
                     Supprime tous les produits, ventes, finances, catégories et rapports
