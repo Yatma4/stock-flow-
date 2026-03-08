@@ -130,14 +130,19 @@ export default function Settings() {
     toast.success('Paramètres enregistrés avec succès');
   };
 
-  const handleManageSessions = () => {
+  const handleManageSessions = async () => {
     setIsSessionsOpen(true);
+    setLoadingSessions(true);
+    const sessions = await fetchActiveSessions();
+    setActiveSessions(sessions);
+    setLoadingSessions(false);
   };
 
-  const handleLogoutAllSessions = () => {
+  const handleLogoutAllSessions = async () => {
+    await removeAllSessions();
     logout();
     setIsSessionsOpen(false);
-    toast.success('Session déconnectée avec succès');
+    toast.success('Toutes les sessions ont été déconnectées');
   };
 
   const getDeletePassword = () => {
