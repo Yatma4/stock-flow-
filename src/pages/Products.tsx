@@ -300,7 +300,7 @@ export default function Products() {
                       "hover:bg-secondary/30 transition-all cursor-pointer",
                       isHighlighted && "bg-warning/20 ring-2 ring-warning animate-pulse"
                     )}
-                    onClick={() => handleEdit(product)}
+                    onClick={() => isAdmin && handleEdit(product)}
                   >
                     <TableCell>
                       <div className="flex items-center gap-3">
