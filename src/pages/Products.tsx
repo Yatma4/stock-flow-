@@ -700,6 +700,43 @@ export default function Products() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Stock Entry Dialog */}
+      <Dialog open={isStockOpen} onOpenChange={setIsStockOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Entrée / Sortie de stock</DialogTitle>
+            <DialogDescription>
+              {stockProduct && (
+                <>Modifier la quantité de <strong>{stockProduct.name}</strong> (stock actuel : {stockProduct.quantity} {stockProduct.unit}(s))</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Quantité à ajouter/retirer</Label>
+              <Input
+                type="number"
+                value={stockQuantity}
+                onChange={(e) => setStockQuantity(Number(e.target.value))}
+                placeholder="Ex: 10 ou -5"
+              />
+              <p className="text-xs text-muted-foreground">
+                Utilisez un nombre positif pour une entrée, négatif pour une sortie.
+              </p>
+            </div>
+            {stockProduct && stockQuantity !== 0 && (
+              <p className="text-sm font-medium">
+                Nouveau stock : {stockProduct.quantity + stockQuantity} {stockProduct.unit}(s)
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsStockOpen(false)}>Annuler</Button>
+            <Button variant="gradient" onClick={submitStockEntry}>Confirmer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }
