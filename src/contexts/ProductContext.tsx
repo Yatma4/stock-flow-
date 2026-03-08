@@ -5,7 +5,7 @@ import { showRealtimeToast } from '@/hooks/use-realtime-toast';
 
 interface ProductContextType {
   products: Product[];
-  addProduct: (product: Product) => void;
+  addProduct: (product: Product) => Promise<boolean>;
   updateProduct: (productId: string, data: Partial<Product>) => void;
   deleteProduct: (productId: string) => void;
   updateStock: (productId: string, quantityChange: number) => void;
@@ -54,17 +54,40 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   }, [fetchProducts]);
 
   const addProduct = async (product: Product) => {
-    setProducts(prev => [...prev, product]);
-    const { error } = await supabase.from('products').insert({
-      id: product.id,
-      name: product.name,
-      category_id: product.categoryId || null,
-      purchase_price: product.purchasePrice,
-      quantity: product.quantity,
-      min_stock: product.minStock,
-      unit: product.unit,
-    });
-    if (error) console.error('Error adding product:', error);
+    const { data, error } = await supabase
+      .from('products')
+      .insert({
+        name: product.name,
+        category_id: product.categoryId || null,
+        purchase_price: product.purchasePrice,
+        quantity: product.quantity,
+        min_stock: product.minStock,
+        unit: product.unit,
+      })
+      .select('*')
+      .single();
+
+    if (error || !data) {
+      console.error('Error adding product:', error);
+      return false;
+    }
+
+    setProducts(prev => [
+      ...prev,
+      {
+        id: data.id,
+        name: data.name,
+        categoryId: data.category_id || '',
+        purchasePrice: Number(data.purchase_price),
+        quantity: data.quantity,
+        minStock: data.min_stock,
+        unit: data.unit,
+        createdAt: new Date(data.created_at),
+        updatedAt: new Date(data.updated_at),
+      },
+    ]);
+
+    return true;
   };
 
   const updateProduct = async (productId: string, data: Partial<Product>) => {
