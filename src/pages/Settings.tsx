@@ -416,6 +416,60 @@ export default function Settings() {
           </div>
         </Card>
 
+        {/* Backup & Restore */}
+        {isAdmin && (
+          <Card className="p-6 shadow-card">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                <DatabaseBackup className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground">Sauvegarde et restauration</h3>
+                <p className="text-sm text-muted-foreground">
+                  Exportez ou importez toutes les données de l'application
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-foreground">Exporter les données</p>
+                  <p className="text-sm text-muted-foreground">
+                    Téléchargez un fichier JSON contenant toutes vos données
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" onClick={handleExportData}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Exporter
+                </Button>
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-foreground">Importer les données</p>
+                  <p className="text-sm text-muted-foreground">
+                    Restaurez vos données depuis un fichier de sauvegarde
+                  </p>
+                </div>
+                <div>
+                  <input
+                    type="file"
+                    accept=".json"
+                    id="import-file"
+                    className="hidden"
+                    onChange={handleImportData}
+                  />
+                  <Button variant="outline" size="sm" onClick={() => document.getElementById('import-file')?.click()}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Importer
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
+
         {/* Admin: Delete All Data */}
         {isAdmin && (
           <Card className="p-6 shadow-card border-destructive/50">
