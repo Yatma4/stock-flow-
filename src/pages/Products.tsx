@@ -258,10 +258,12 @@ export default function Products() {
                 Gérer catégories
               </Button>
             )}
-            <Button variant="gradient" onClick={handleAdd}>
-              <Plus className="mr-2 h-4 w-4" />
-              Ajouter un produit
-            </Button>
+            {isAdmin && (
+              <Button variant="gradient" onClick={handleAdd}>
+                <Plus className="mr-2 h-4 w-4" />
+                Ajouter un produit
+              </Button>
+            )}
           </div>
         </div>
 
@@ -272,7 +274,7 @@ export default function Products() {
               <TableRow className="bg-secondary/50">
                 <TableHead className="font-semibold">Produit</TableHead>
                 <TableHead className="font-semibold">Catégorie</TableHead>
-                <TableHead className="font-semibold text-right">Prix d'achat</TableHead>
+                {isAdmin && <TableHead className="font-semibold text-right">Prix d'achat</TableHead>}
                 <TableHead className="font-semibold text-right">Quantité</TableHead>
                 <TableHead className="font-semibold">Statut</TableHead>
                 <TableHead className="font-semibold text-right">Actions</TableHead>
@@ -281,7 +283,7 @@ export default function Products() {
             <TableBody>
               {filteredProducts.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={isAdmin ? 6 : 5} className="text-center py-8 text-muted-foreground">
                     Aucun produit trouvé. Ajoutez votre premier produit !
                   </TableCell>
                 </TableRow>
@@ -328,9 +330,11 @@ export default function Products() {
                         {category?.name || 'Sans catégorie'}
                       </span>
                     </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {formatCurrency(product.purchasePrice)}
-                    </TableCell>
+                    {isAdmin && (
+                      <TableCell className="text-right font-medium">
+                        {formatCurrency(product.purchasePrice)}
+                      </TableCell>
+                    )}
                     <TableCell className="text-right font-medium">
                       {product.quantity} {product.unit}(s)
                     </TableCell>
@@ -348,28 +352,32 @@ export default function Products() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEdit(product);
-                          }}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(product);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {isAdmin && (
+                          <>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEdit(product);
+                              }}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(product);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
