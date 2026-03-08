@@ -5,7 +5,7 @@ import { showRealtimeToast } from '@/hooks/use-realtime-toast';
 
 interface CategoryContextType {
   categories: Category[];
-  addCategory: (category: Category) => Promise<boolean>;
+  addCategory: (category: Category) => void;
   updateCategory: (id: string, data: Partial<Category>) => void;
   deleteCategory: (id: string) => void;
   loading: boolean;
@@ -49,32 +49,14 @@ export function CategoryProvider({ children }: { children: ReactNode }) {
   }, [fetchCategories]);
 
   const addCategory = async (category: Category) => {
-    const { data, error } = await supabase
-      .from('categories')
-      .insert({
-        name: category.name,
-        description: category.description || null,
-        color: category.color,
-      })
-      .select('*')
-      .single();
-
-    if (error || !data) {
-      console.error('Error adding category:', error);
-      return false;
-    }
-
-    setCategories(prev => [
-      ...prev,
-      {
-        id: data.id,
-        name: data.name,
-        description: data.description || undefined,
-        color: data.color,
-      },
-    ]);
-
-    return true;
+    setCategories(prev => [...prev, category]);
+    const { error } = await supabase.from('categories').insert({
+      id: category.id,
+      name: category.name,
+      description: category.description || null,
+      color: category.color,
+    });
+    if (error) console.error('Error adding category:', error);
   };
 
   const updateCategory = async (id: string, data: Partial<Category>) => {
