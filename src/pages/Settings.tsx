@@ -782,7 +782,52 @@ export default function Settings() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Change Delete Password Dialog */}
+      {/* Archive Data Confirmation */}
+      <AlertDialog open={isArchiveOpen} onOpenChange={setIsArchiveOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archiver les ventes et finances ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action supprimera toutes les ventes, devis et finances. 
+              Les produits et catégories seront conservés.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4 space-y-2">
+            <Label htmlFor="archive-password">Mot de passe de suppression</Label>
+            <Input
+              id="archive-password"
+              type="password"
+              placeholder="Entrez le mot de passe spécial"
+              value={archivePassword}
+              onChange={(e) => {
+                setArchivePassword(e.target.value);
+                setArchivePasswordError('');
+              }}
+            />
+            {archivePasswordError && (
+              <p className="text-sm text-destructive">{archivePasswordError}</p>
+            )}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setArchivePassword('');
+              setArchivePasswordError('');
+            }}>
+              Annuler
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => {
+                e.preventDefault();
+                handleArchiveData();
+              }}
+              className="bg-orange-600 text-white hover:bg-orange-700"
+            >
+              Oui, archiver
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Dialog open={isChangePasswordOpen} onOpenChange={setIsChangePasswordOpen}>
         <DialogContent>
           <DialogHeader>
