@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      active_sessions: {
+        Row: {
+          browser: string
+          created_at: string
+          device_info: string
+          id: string
+          last_active_at: string
+          os: string
+          session_token: string
+          user_id: string
+          user_name: string
+          user_role: string
+        }
+        Insert: {
+          browser: string
+          created_at?: string
+          device_info: string
+          id?: string
+          last_active_at?: string
+          os: string
+          session_token: string
+          user_id: string
+          user_name: string
+          user_role: string
+        }
+        Update: {
+          browser?: string
+          created_at?: string
+          device_info?: string
+          id?: string
+          last_active_at?: string
+          os?: string
+          session_token?: string
+          user_id?: string
+          user_name?: string
+          user_role?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           color: string
