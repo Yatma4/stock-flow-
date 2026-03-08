@@ -237,7 +237,93 @@ export default function Settings() {
     toast.success('Question de récupération mise à jour');
   };
 
-  const updateCompany = (field: keyof AppSettings['company'], value: string) => {
+  const handleExportData = async () => {
+    try {
+      const [categories, products, sales, saleItems, quotes, quoteItems, finances] = await Promise.all([
+        supabase.from('categories').select('*'),
+        supabase.from('products').select('*'),
+        supabase.from('sales').select('*'),
+        supabase.from('sale_items').select('*'),
+        supabase.from('quotes').select('*'),
+        supabase.from('quote_items').select('*'),
+        supabase.from('financial_entries').select('*'),
+      ]);
+
+      const backup = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        data: {
+          categories: categories.data || [],
+          products: products.data || [],
+          sales: sales.data || [],
+          sale_items: saleItems.data || [],
+          quotes: quotes.data || [],
+          quote_items: quoteItems.data || [],
+          financial_entries: finances.data || [],
+        },
+      };
+
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sauvegarde_${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Données exportées avec succès');
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error("Erreur lors de l'exportation");
+    }
+  };
+
+  const handleImportData = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    try {
+      const text = await file.text();
+      const backup = JSON.parse(text);
+
+      if (!backup.data || !backup.version) {
+        toast.error('Fichier de sauvegarde invalide');
+        return;
+      }
+
+      const confirmed = window.confirm(
+        'Cette action remplacera toutes les données actuelles par celles du fichier. Continuer ?'
+      );
+      if (!confirmed) return;
+
+      // Clear existing data (respect FK order)
+      await supabase.from('sale_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('sales').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('quote_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('quotes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('financial_entries').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('products').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('categories').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+
+      // Insert in correct order
+      const d = backup.data;
+      if (d.categories?.length) await supabase.from('categories').insert(d.categories);
+      if (d.products?.length) await supabase.from('products').insert(d.products);
+      if (d.sales?.length) await supabase.from('sales').insert(d.sales);
+      if (d.sale_items?.length) await supabase.from('sale_items').insert(d.sale_items);
+      if (d.quotes?.length) await supabase.from('quotes').insert(d.quotes);
+      if (d.quote_items?.length) await supabase.from('quote_items').insert(d.quote_items);
+      if (d.financial_entries?.length) await supabase.from('financial_entries').insert(d.financial_entries);
+
+      toast.success('Données restaurées avec succès');
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (error) {
+      console.error('Import error:', error);
+      toast.error('Erreur lors de l\'importation. Vérifiez le fichier.');
+    }
+  };
+
+
     setSettings(prev => ({
       ...prev,
       company: { ...prev.company, [field]: value },
