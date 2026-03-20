@@ -42,6 +42,7 @@ export default function Products() {
   const { categories, addCategory, updateCategory, deleteCategory } = useCategories();
   const { currentUser } = useAuth();
   const isAdmin = currentUser?.role === 'admin';
+  const canManage = currentUser?.role === 'admin' || currentUser?.role === 'assistant';
   const [searchParams, setSearchParams] = useSearchParams();
   const highlightedRef = useRef<HTMLTableRowElement>(null);
   
@@ -268,7 +269,7 @@ export default function Products() {
             </Select>
           </div>
           <div className="flex gap-2">
-            {isAdmin && (
+            {canManage && (
               <Button variant="outline" onClick={() => {
                 setEditingCategory(null);
                 setCategoryForm({ name: '', description: '', color: '#2DD4BF' });
@@ -278,7 +279,7 @@ export default function Products() {
                 Gérer catégories
               </Button>
             )}
-            {isAdmin && (
+            {canManage && (
               <Button variant="gradient" onClick={handleAdd}>
                 <Plus className="mr-2 h-4 w-4" />
                 Ajouter un produit
@@ -320,7 +321,7 @@ export default function Products() {
                       "hover:bg-secondary/30 transition-all cursor-pointer",
                       isHighlighted && "bg-warning/20 ring-2 ring-warning animate-pulse"
                     )}
-                    onClick={() => isAdmin && handleEdit(product)}
+                    onClick={() => canManage && handleEdit(product)}
                   >
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -372,57 +373,43 @@ export default function Products() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
-                        {!isAdmin && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-primary hover:text-primary"
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-primary hover:text-primary"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleStockEntry(product);
+                          }}
+                          title="Entrée de stock"
+                        >
+                          <PackagePlus className="h-4 w-4" />
+                        </Button>
+                        {canManage && (
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleStockEntry(product);
+                              handleEdit(product);
                             }}
-                            title="Entrée de stock"
                           >
-                            <PackagePlus className="h-4 w-4" />
+                            <Edit className="h-4 w-4" />
                           </Button>
                         )}
                         {isAdmin && (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-primary hover:text-primary"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleStockEntry(product);
-                              }}
-                              title="Entrée de stock"
-                            >
-                              <PackagePlus className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-8 w-8"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleEdit(product);
-                              }}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-8 w-8 text-destructive hover:text-destructive"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDelete(product);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(product);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         )}
                       </div>
                     </TableCell>
@@ -471,15 +458,17 @@ export default function Products() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="purchasePrice">Prix d'achat (FCFA)</Label>
-              <Input
-                id="purchasePrice"
-                type="number"
-                value={formData.purchasePrice}
-                onChange={(e) => setFormData({ ...formData, purchasePrice: Number(e.target.value) })}
-              />
-            </div>
+            {isAdmin && (
+              <div className="space-y-2">
+                <Label htmlFor="purchasePrice">Prix d'achat (FCFA)</Label>
+                <Input
+                  id="purchasePrice"
+                  type="number"
+                  value={formData.purchasePrice}
+                  onChange={(e) => setFormData({ ...formData, purchasePrice: Number(e.target.value) })}
+                />
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="quantity">Quantité</Label>
@@ -548,15 +537,17 @@ export default function Products() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-purchasePrice">Prix d'achat (FCFA)</Label>
-              <Input
-                id="edit-purchasePrice"
-                type="number"
-                value={formData.purchasePrice}
-                onChange={(e) => setFormData({ ...formData, purchasePrice: Number(e.target.value) })}
-              />
-            </div>
+            {isAdmin && (
+              <div className="space-y-2">
+                <Label htmlFor="edit-purchasePrice">Prix d'achat (FCFA)</Label>
+                <Input
+                  id="edit-purchasePrice"
+                  type="number"
+                  value={formData.purchasePrice}
+                  onChange={(e) => setFormData({ ...formData, purchasePrice: Number(e.target.value) })}
+                />
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="edit-quantity">Quantité</Label>
@@ -675,14 +666,16 @@ export default function Products() {
                         >
                           <Edit className="h-3 w-3" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-destructive"
-                          onClick={() => handleDeleteCategory(cat.id)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
+                        {isAdmin && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive"
+                            onClick={() => handleDeleteCategory(cat.id)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}

@@ -18,7 +18,7 @@ import { useFinances } from '@/contexts/FinanceContext';
 import { formatCurrency } from '@/lib/currency';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { TrendingUp, TrendingDown, Search, Plus } from 'lucide-react';
+import { TrendingUp, TrendingDown, Search, Plus, Edit, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { FinancialEntry } from '@/types';
@@ -27,10 +27,13 @@ const expenseCategories = ['Loyer', 'Transport', 'Fournitures', 'Salaires', 'Mai
 const incomeCategories = ['Vente', 'Service', 'Commission', 'Autre'];
 
 export default function Expenses() {
-  const { entries, addEntry } = useFinances();
+  const { entries, addEntry, updateEntry, deleteEntry } = useFinances();
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<'all' | 'income' | 'expense'>('all');
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [selectedEntry, setSelectedEntry] = useState<FinancialEntry | null>(null);
   const [formData, setFormData] = useState({
     type: 'expense' as 'income' | 'expense',
     description: '',
@@ -53,36 +56,125 @@ export default function Expenses() {
     setIsAddOpen(true);
   };
 
-  const submitAdd = () => {
+  const handleEdit = (entry: FinancialEntry) => {
+    setSelectedEntry(entry);
+    setFormData({
+      type: entry.type,
+      description: entry.description,
+      amount: String(entry.amount),
+      category: entry.category,
+    });
+    setIsEditOpen(true);
+  };
+
+  const handleDelete = (entry: FinancialEntry) => {
+    setSelectedEntry(entry);
+    setIsDeleteOpen(true);
+  };
+
+  const validateForm = () => {
     if (!formData.description.trim()) {
       toast.error('Veuillez saisir une description');
-      return;
+      return false;
     }
     const amount = parseFloat(formData.amount);
     if (!amount || amount <= 0) {
       toast.error('Veuillez saisir un montant valide');
-      return;
+      return false;
     }
     if (!formData.category) {
       toast.error('Veuillez sélectionner une catégorie');
-      return;
+      return false;
     }
+    return true;
+  };
 
+  const submitAdd = () => {
+    if (!validateForm()) return;
     const entry: FinancialEntry = {
       id: crypto.randomUUID(),
       type: formData.type,
       description: formData.description.trim(),
-      amount,
+      amount: parseFloat(formData.amount),
       category: formData.category,
       date: new Date(),
     };
-
     addEntry(entry);
     setIsAddOpen(false);
     toast.success(formData.type === 'expense' ? 'Dépense ajoutée' : 'Recette ajoutée');
   };
 
+  const submitEdit = () => {
+    if (!selectedEntry || !validateForm()) return;
+    updateEntry(selectedEntry.id, {
+      type: formData.type,
+      description: formData.description.trim(),
+      amount: parseFloat(formData.amount),
+      category: formData.category,
+    });
+    setIsEditOpen(false);
+    toast.success('Entrée modifiée avec succès');
+  };
+
+  const confirmDelete = () => {
+    if (!selectedEntry) return;
+    deleteEntry(selectedEntry.id);
+    setIsDeleteOpen(false);
+    toast.success('Entrée supprimée');
+  };
+
   const categories = formData.type === 'expense' ? expenseCategories : incomeCategories;
+
+  const renderFormFields = () => (
+    <div className="space-y-4 py-2">
+      <div className="space-y-2">
+        <Label>Type</Label>
+        <Select
+          value={formData.type}
+          onValueChange={(v) => setFormData({ ...formData, type: v as 'income' | 'expense', category: '' })}
+        >
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="expense">Dépense</SelectItem>
+            <SelectItem value="income">Recette</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-2">
+        <Label>Description</Label>
+        <Input
+          placeholder="Ex: Achat de fournitures"
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          maxLength={200}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>Montant (FCFA)</Label>
+        <Input
+          type="number"
+          placeholder="0"
+          min="0"
+          value={formData.amount}
+          onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>Catégorie</Label>
+        <Select
+          value={formData.category}
+          onValueChange={(v) => setFormData({ ...formData, category: v })}
+        >
+          <SelectTrigger><SelectValue placeholder="Choisir une catégorie" /></SelectTrigger>
+          <SelectContent>
+            {categories.map(c => (
+              <SelectItem key={c} value={c}>{c}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
 
   return (
     <MainLayout title="Dépenses & Recettes" subtitle="Suivi des mouvements financiers">
@@ -151,12 +243,13 @@ export default function Expenses() {
                 <TableHead>Catégorie</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead className="text-right">Montant</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                     Aucune entrée trouvée
                   </TableCell>
                 </TableRow>
@@ -182,6 +275,26 @@ export default function Expenses() {
                     }`}>
                       {entry.type === 'income' ? '+' : '-'}{formatCurrency(entry.amount)}
                     </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleEdit(entry)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => handleDelete(entry)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -197,57 +310,41 @@ export default function Expenses() {
             <DialogTitle>Nouvelle entrée</DialogTitle>
             <DialogDescription>Ajouter une dépense ou une recette</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label>Type</Label>
-              <Select
-                value={formData.type}
-                onValueChange={(v) => setFormData({ ...formData, type: v as 'income' | 'expense', category: '' })}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="expense">Dépense</SelectItem>
-                  <SelectItem value="income">Recette</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Description</Label>
-              <Input
-                placeholder="Ex: Achat de fournitures"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                maxLength={200}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Montant (FCFA)</Label>
-              <Input
-                type="number"
-                placeholder="0"
-                min="0"
-                value={formData.amount}
-                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Catégorie</Label>
-              <Select
-                value={formData.category}
-                onValueChange={(v) => setFormData({ ...formData, category: v })}
-              >
-                <SelectTrigger><SelectValue placeholder="Choisir une catégorie" /></SelectTrigger>
-                <SelectContent>
-                  {categories.map(c => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          {renderFormFields()}
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddOpen(false)}>Annuler</Button>
             <Button variant="gradient" onClick={submitAdd}>Ajouter</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Modifier l'entrée</DialogTitle>
+            <DialogDescription>Modifiez les informations de cette entrée</DialogDescription>
+          </DialogHeader>
+          {renderFormFields()}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditOpen(false)}>Annuler</Button>
+            <Button variant="gradient" onClick={submitEdit}>Enregistrer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirmer la suppression</DialogTitle>
+            <DialogDescription>
+              Êtes-vous sûr de vouloir supprimer "{selectedEntry?.description}" ? Cette action est irréversible.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>Annuler</Button>
+            <Button variant="destructive" onClick={confirmDelete}>Supprimer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
