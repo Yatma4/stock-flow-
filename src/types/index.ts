@@ -66,7 +66,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'employee';
+  role: 'admin' | 'employee' | 'assistant';
   avatar?: string;
 }
 
