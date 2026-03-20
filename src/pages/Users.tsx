@@ -43,7 +43,7 @@ export default function Users() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    role: 'employee' as 'admin' | 'employee',
+    role: 'employee' as 'admin' | 'employee' | 'assistant',
     code: '',
   });
   const [newCode, setNewCode] = useState('');
