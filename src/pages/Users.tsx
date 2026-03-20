@@ -43,7 +43,7 @@ export default function Users() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    role: 'employee' as 'admin' | 'employee',
+    role: 'employee' as 'admin' | 'employee' | 'assistant',
     code: '',
   });
   const [newCode, setNewCode] = useState('');
@@ -245,6 +245,8 @@ export default function Users() {
                         'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border',
                         user.role === 'admin'
                           ? 'bg-primary/10 text-primary border-primary/30'
+                          : user.role === 'assistant'
+                          ? 'bg-warning/10 text-warning border-warning/30'
                           : 'bg-success/10 text-success border-success/30'
                       )}
                     >
@@ -253,7 +255,7 @@ export default function Users() {
                       ) : (
                         <User className="mr-1 h-3 w-3" />
                       )}
-                      {user.role === 'admin' ? 'Administrateur' : 'Employé'}
+                      {user.role === 'admin' ? 'Administrateur' : user.role === 'assistant' ? 'Assistant' : 'Employé'}
                     </span>
                   </TableCell>
                   <TableCell className="text-right">
@@ -338,6 +340,7 @@ export default function Users() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="employee">Employé</SelectItem>
+                  <SelectItem value="assistant">Assistant</SelectItem>
                   <SelectItem value="admin">Administrateur</SelectItem>
                 </SelectContent>
               </Select>
@@ -403,6 +406,7 @@ export default function Users() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="employee">Employé</SelectItem>
+                  <SelectItem value="assistant">Assistant</SelectItem>
                   <SelectItem value="admin">Administrateur</SelectItem>
                 </SelectContent>
               </Select>

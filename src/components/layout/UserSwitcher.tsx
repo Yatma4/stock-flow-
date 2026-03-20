@@ -70,7 +70,7 @@ export function UserSwitcher() {
             <div className="hidden md:block text-left">
               <p className="text-sm font-medium">{currentUser.name}</p>
               <p className="text-xs text-muted-foreground capitalize">
-                {currentUser.role === 'admin' ? 'Administrateur' : 'Employé'}
+                {currentUser.role === 'admin' ? 'Administrateur' : currentUser.role === 'assistant' ? 'Assistant' : 'Employé'}
               </p>
             </div>
             <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -97,7 +97,7 @@ export function UserSwitcher() {
               <div className="flex-1">
                 <p className="text-sm">{user.name}</p>
                 <p className="text-xs text-muted-foreground capitalize">
-                  {user.role === 'admin' ? 'Admin' : 'Employé'}
+                  {user.role === 'admin' ? 'Admin' : user.role === 'assistant' ? 'Assistant' : 'Employé'}
                 </p>
               </div>
               {user.id === currentUser.id && (
