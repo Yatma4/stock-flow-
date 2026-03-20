@@ -42,6 +42,7 @@ export default function Products() {
   const { categories, addCategory, updateCategory, deleteCategory } = useCategories();
   const { currentUser } = useAuth();
   const isAdmin = currentUser?.role === 'admin';
+  const canManage = currentUser?.role === 'admin' || currentUser?.role === 'assistant';
   const [searchParams, setSearchParams] = useSearchParams();
   const highlightedRef = useRef<HTMLTableRowElement>(null);
   
