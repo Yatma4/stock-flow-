@@ -458,15 +458,17 @@ export default function Products() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="purchasePrice">Prix d'achat (FCFA)</Label>
-              <Input
-                id="purchasePrice"
-                type="number"
-                value={formData.purchasePrice}
-                onChange={(e) => setFormData({ ...formData, purchasePrice: Number(e.target.value) })}
-              />
-            </div>
+            {isAdmin && (
+              <div className="space-y-2">
+                <Label htmlFor="purchasePrice">Prix d'achat (FCFA)</Label>
+                <Input
+                  id="purchasePrice"
+                  type="number"
+                  value={formData.purchasePrice}
+                  onChange={(e) => setFormData({ ...formData, purchasePrice: Number(e.target.value) })}
+                />
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="quantity">Quantité</Label>
