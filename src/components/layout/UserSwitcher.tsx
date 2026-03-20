@@ -97,7 +97,7 @@ export function UserSwitcher() {
               <div className="flex-1">
                 <p className="text-sm">{user.name}</p>
                 <p className="text-xs text-muted-foreground capitalize">
-                  {user.role === 'admin' ? 'Admin' : 'Employé'}
+                  {user.role === 'admin' ? 'Admin' : user.role === 'assistant' ? 'Assistant' : 'Employé'}
                 </p>
               </div>
               {user.id === currentUser.id && (
