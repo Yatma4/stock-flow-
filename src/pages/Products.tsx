@@ -537,7 +537,7 @@ export default function Products() {
                 </SelectContent>
               </Select>
             </div>
-            {isAdmin && (
+            {canManage && (
               <div className="space-y-2">
                 <Label htmlFor="edit-purchasePrice">Prix d'achat (FCFA)</Label>
                 <Input
