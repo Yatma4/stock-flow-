@@ -269,7 +269,7 @@ export default function Products() {
             </Select>
           </div>
           <div className="flex gap-2">
-            {isAdmin && (
+            {canManage && (
               <Button variant="outline" onClick={() => {
                 setEditingCategory(null);
                 setCategoryForm({ name: '', description: '', color: '#2DD4BF' });
@@ -279,7 +279,7 @@ export default function Products() {
                 Gérer catégories
               </Button>
             )}
-            {isAdmin && (
+            {canManage && (
               <Button variant="gradient" onClick={handleAdd}>
                 <Plus className="mr-2 h-4 w-4" />
                 Ajouter un produit
