@@ -340,6 +340,7 @@ export default function Users() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="employee">Employé</SelectItem>
+                  <SelectItem value="assistant">Assistant</SelectItem>
                   <SelectItem value="admin">Administrateur</SelectItem>
                 </SelectContent>
               </Select>
