@@ -16,6 +16,7 @@ import Products from "./pages/Products";
 import Sales from "./pages/Sales";
 import Quotes from "./pages/Quotes";
 import Finances from "./pages/Finances";
+import Expenses from "./pages/Expenses";
 import Reports from "./pages/Reports";
 import Users from "./pages/Users";
 import Settings from "./pages/Settings";
@@ -37,6 +38,13 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function AssistantOrAdminRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, currentUser } = useAuth();
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (currentUser?.role !== 'admin' && currentUser?.role !== 'assistant') return <Navigate to="/sales" replace />;
+  return <>{children}</>;
+}
+
 function AppRoutes() {
   const { isAuthenticated, currentUser } = useAuth();
   const defaultRoute = currentUser?.role === 'admin' ? <Index /> : <Navigate to="/sales" replace />;
@@ -49,6 +57,7 @@ function AppRoutes() {
       <Route path="/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
       <Route path="/quotes" element={<ProtectedRoute><Quotes /></ProtectedRoute>} />
       <Route path="/finances" element={<AdminRoute><Finances /></AdminRoute>} />
+      <Route path="/expenses" element={<AssistantOrAdminRoute><Expenses /></AssistantOrAdminRoute>} />
       <Route path="/reports" element={<AdminRoute><Reports /></AdminRoute>} />
       <Route path="/users" element={<AdminRoute><Users /></AdminRoute>} />
       <Route path="/settings" element={<AdminRoute><Settings /></AdminRoute>} />

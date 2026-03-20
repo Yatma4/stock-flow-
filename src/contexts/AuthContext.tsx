@@ -32,12 +32,19 @@ const defaultUsers: User[] = [
     email: 'employe1@stock.com',
     role: 'employee',
   },
+  {
+    id: '3',
+    name: 'Assistant',
+    email: 'assistant@stock.com',
+    role: 'assistant',
+  },
 ];
 
 // Store user codes separately (in real app, this would be hashed in a database)
 const defaultUserCodes: Record<string, string> = {
   '1': '1234', // Admin code
   '2': '5678', // Employee code
+  '3': '9012', // Assistant code
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
