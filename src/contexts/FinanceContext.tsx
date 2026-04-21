@@ -7,7 +7,7 @@ interface FinanceContextType {
   entries: FinancialEntry[];
   addEntry: (entry: FinancialEntry) => void;
   updateEntry: (entryId: string, data: Partial<FinancialEntry>) => void;
-  deleteEntry: (entryId: string) => void;
+  deleteEntry: (entryId: string, reason?: string) => void;
   loading: boolean;
 }
 
@@ -52,16 +52,30 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   }, [fetchEntries]);
 
   const addEntry = async (entry: FinancialEntry) => {
-    setEntries(prev => [entry, ...prev]);
-    const { error } = await supabase.from('financial_entries').insert({
-      id: entry.id,
+    // Let DB generate UUID to avoid invalid-uuid insert errors when callers
+    // pass non-UUID ids (e.g. Date.now().toString()).
+    const { data, error } = await supabase.from('financial_entries').insert({
       type: entry.type,
       category: entry.category,
       amount: entry.amount,
       description: entry.description,
       date: entry.date.toISOString(),
-    });
-    if (error) console.error('Error adding entry:', error);
+    }).select().single();
+    if (error) {
+      console.error('Error adding entry:', error);
+      return;
+    }
+    if (data) {
+      const inserted: FinancialEntry = {
+        id: data.id,
+        type: data.type as 'income' | 'expense',
+        category: data.category,
+        amount: Number(data.amount),
+        description: data.description,
+        date: new Date(data.date),
+      };
+      setEntries(prev => [inserted, ...prev.filter(e => e.id !== entry.id)]);
+    }
   };
 
   const updateEntry = async (entryId: string, data: Partial<FinancialEntry>) => {
@@ -77,7 +91,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     if (error) console.error('Error updating entry:', error);
   };
 
-  const deleteEntry = async (entryId: string) => {
+  const deleteEntry = async (entryId: string, _reason?: string) => {
     setEntries(prev => prev.filter(e => e.id !== entryId));
     const { error } = await supabase.from('financial_entries').delete().eq('id', entryId);
     if (error) console.error('Error deleting entry:', error);
