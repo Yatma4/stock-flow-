@@ -44,6 +44,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchActiveSessions, removeAllSessions, getSessionToken } from '@/lib/session';
+import { getSetting, setSetting, subscribeSettings } from '@/lib/appSettings';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -89,10 +90,10 @@ export default function Settings() {
   const { currentUser, logout } = useAuth();
   const isAdmin = currentUser?.role === 'admin';
 
-  const [settings, setSettings] = useState<AppSettings>(() => {
-    const stored = localStorage.getItem(SETTINGS_KEY);
-    return stored ? JSON.parse(stored) : defaultSettings;
-  });
+  const [settings, setSettings] = useState<AppSettings>(defaultSettings);
+  const [originalSettings, setOriginalSettings] = useState<AppSettings>(defaultSettings);
+  const [deletePasswordValue, setDeletePasswordValue] = useState<string>(DEFAULT_DELETE_PASSWORD);
+  const [recoveryValue, setRecoveryValue] = useState(DEFAULT_RECOVERY);
 
   const [isSessionsOpen, setIsSessionsOpen] = useState(false);
   const [activeSessions, setActiveSessions] = useState<any[]>([]);
@@ -117,17 +118,34 @@ export default function Settings() {
   const [recoveryAnswer, setRecoveryAnswer] = useState('');
   const [recoveryError, setRecoveryError] = useState('');
 
-  // Track changes
+  // Track changes vs original (from Supabase)
   useEffect(() => {
-    const stored = localStorage.getItem(SETTINGS_KEY);
-    const original = stored ? JSON.parse(stored) : defaultSettings;
-    setHasChanges(JSON.stringify(settings) !== JSON.stringify(original));
-  }, [settings]);
+    setHasChanges(JSON.stringify(settings) !== JSON.stringify(originalSettings));
+  }, [settings, originalSettings]);
 
-  const handleSave = () => {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  // Load settings from Supabase + subscribe to realtime
+  useEffect(() => {
+    const load = async () => {
+      const [appSettings, delPwd, recovery] = await Promise.all([
+        getSetting<AppSettings>(SETTINGS_KEY, defaultSettings),
+        getSetting<string>(DELETE_PASSWORD_KEY, DEFAULT_DELETE_PASSWORD),
+        getSetting<{ question: string; answer: string }>(RECOVERY_KEY, DEFAULT_RECOVERY),
+      ]);
+      setSettings(appSettings);
+      setOriginalSettings(appSettings);
+      setDeletePasswordValue(delPwd);
+      setRecoveryValue(recovery);
+    };
+    load();
+    const unsub = subscribeSettings(load);
+    return unsub;
+  }, []);
+
+  const handleSave = async () => {
+    await setSetting(SETTINGS_KEY, settings);
+    setOriginalSettings(settings);
     setHasChanges(false);
-    toast.success('Paramètres enregistrés avec succès');
+    toast.success('Paramètres enregistrés et synchronisés');
   };
 
   const handleManageSessions = async () => {
@@ -145,14 +163,8 @@ export default function Settings() {
     toast.success('Toutes les sessions ont été déconnectées');
   };
 
-  const getDeletePassword = () => {
-    return localStorage.getItem(DELETE_PASSWORD_KEY) || DEFAULT_DELETE_PASSWORD;
-  };
-
-  const getRecovery = () => {
-    const stored = localStorage.getItem(RECOVERY_KEY);
-    return stored ? JSON.parse(stored) : DEFAULT_RECOVERY;
-  };
+  const getDeletePassword = () => deletePasswordValue;
+  const getRecovery = () => recoveryValue;
 
   const handleDeleteAllData = async () => {
     if (deletePassword !== getDeletePassword()) {
@@ -242,7 +254,8 @@ export default function Settings() {
       return;
     }
 
-    localStorage.setItem(DELETE_PASSWORD_KEY, newDeletePassword);
+    await setSetting(DELETE_PASSWORD_KEY, newDeletePassword);
+    setDeletePasswordValue(newDeletePassword);
     setIsChangePasswordOpen(false);
     setCurrentDeletePassword('');
     setNewDeletePassword('');
