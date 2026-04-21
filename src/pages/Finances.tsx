@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useFinances } from '@/contexts/FinanceContext';
+import { useCategories } from '@/contexts/CategoryContext';
 import {
   Plus,
   Search,
@@ -45,11 +46,11 @@ import { toast } from 'sonner';
 import { FinancialEntry } from '@/types';
 import { formatCurrency } from '@/lib/currency';
 
-const incomeCategories = ['Ventes', 'Services', 'Investissements', 'Autres revenus'];
-const expenseCategories = ['Achats stock', 'Salaires', 'Loyer', 'Électricité', 'Marketing', 'Fournitures', 'Autres dépenses'];
-
 export default function Finances() {
   const { entries, addEntry } = useFinances();
+  const { categories } = useCategories();
+  const incomeCategories = ['Ventes', 'Services', 'COMMISSION', 'COMMISSION REPARATION', 'CREANCES', 'Autres revenus', ...categories.map(c => c.name)];
+  const expenseCategories = ['Achats stock', 'Salaires', 'Loyer', 'Électricité', 'Marketing', 'Transport', 'Fournitures', 'DETTES', 'Autres dépenses'];
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [isAddOpen, setIsAddOpen] = useState(false);

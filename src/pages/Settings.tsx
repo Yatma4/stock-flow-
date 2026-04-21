@@ -286,7 +286,7 @@ export default function Settings() {
     setIsRecoverySettingsOpen(true);
   };
 
-  const handleSaveRecovery = () => {
+  const handleSaveRecovery = async () => {
     if (!recoveryQuestion.trim()) {
       setRecoveryError('Veuillez entrer une question');
       return;
@@ -295,10 +295,12 @@ export default function Settings() {
       setRecoveryError('Veuillez entrer une réponse');
       return;
     }
-    localStorage.setItem(RECOVERY_KEY, JSON.stringify({
+    const newRecovery = {
       question: recoveryQuestion.trim(),
-      answer: recoveryAnswer.trim().toLowerCase()
-    }));
+      answer: recoveryAnswer.trim().toLowerCase(),
+    };
+    await setSetting(RECOVERY_KEY, newRecovery);
+    setRecoveryValue(newRecovery);
     setIsRecoverySettingsOpen(false);
     toast.success('Question de récupération mise à jour');
   };
