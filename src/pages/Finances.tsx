@@ -265,12 +265,13 @@ export default function Finances() {
                 <TableHead className="font-semibold">Description</TableHead>
                 <TableHead className="font-semibold">Date</TableHead>
                 <TableHead className="font-semibold text-right">Montant</TableHead>
+                {isAdmin && <TableHead className="font-semibold text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredEntries.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={isAdmin ? 6 : 5} className="text-center py-8 text-muted-foreground">
                     Aucune entrée financière. Ajoutez votre première entrée !
                   </TableCell>
                 </TableRow>
