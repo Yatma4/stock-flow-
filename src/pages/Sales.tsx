@@ -59,6 +59,7 @@ export default function Sales() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [productSearch, setProductSearch] = useState('');
+  const [clientName, setClientName] = useState('');
   const { addNotification } = useNotifications();
   const { currentUser } = useAuth();
   const isAdmin = currentUser?.role === 'admin';
@@ -111,6 +112,7 @@ export default function Sales() {
     setCart([]);
     setPaymentMethod('cash');
     setProductSearch('');
+    setClientName('');
     setIsAddOpen(true);
   };
 
@@ -194,6 +196,7 @@ export default function Sales() {
       date: new Date(),
       employeeId: currentUser.id,
       employeeName: currentUser.name,
+      clientName: clientName.trim() || undefined,
       status: 'completed',
     };
 
