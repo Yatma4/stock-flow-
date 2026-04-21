@@ -64,6 +64,7 @@ export function SalesProvider({ children }: { children: ReactNode }) {
       date: new Date(s.date),
       employeeId: s.employee_id,
       employeeName: s.employee_name,
+      clientName: (s as any).client_name || undefined,
       status: s.status as 'completed' | 'cancelled',
       cancelReason: s.cancel_reason || undefined,
       cancelledAt: s.cancelled_at ? new Date(s.cancelled_at) : undefined,
@@ -100,9 +101,10 @@ export function SalesProvider({ children }: { children: ReactNode }) {
       payment_method: sale.paymentMethod,
       employee_id: sale.employeeId,
       employee_name: sale.employeeName,
+      client_name: sale.clientName || null,
       status: sale.status,
       date: sale.date.toISOString(),
-    });
+    } as any);
     
     if (saleError) {
       console.error('Error adding sale:', saleError);
