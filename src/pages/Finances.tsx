@@ -30,6 +30,8 @@ import {
 } from '@/components/ui/select';
 import { useFinances } from '@/contexts/FinanceContext';
 import { useCategories } from '@/contexts/CategoryContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Plus,
   Search,
@@ -38,6 +40,8 @@ import {
   Wallet,
   ArrowUpCircle,
   ArrowDownCircle,
+  Edit,
+  Trash2,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
