@@ -238,7 +238,7 @@ export default function Settings() {
     }
   };
 
-  const handleChangeDeletePassword = () => {
+  const handleChangeDeletePassword = async () => {
     if (currentDeletePassword !== getDeletePassword()) {
       setChangePasswordError('Mot de passe actuel incorrect');
       return;
