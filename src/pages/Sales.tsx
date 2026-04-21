@@ -300,6 +300,7 @@ export default function Sales() {
         <div class="separator">--------------------------------</div>
         <div class="info">Date: ${format(new Date(sale.date), 'dd/MM/yyyy HH:mm')}</div>
         <div class="info">Vendeur: ${sale.employeeName}</div>
+        ${sale.clientName ? `<div class="info">Client: ${sale.clientName}</div>` : ''}
         <div class="info">Paiement: ${paymentMethodLabels[sale.paymentMethod]}</div>
         <div class="separator">--------------------------------</div>
         ${sale.items.map(item => `
@@ -366,6 +367,10 @@ export default function Sales() {
           y += 4;
           doc.text(`Vendeur: ${sale.employeeName}`, 5, y);
           y += 4;
+          if (sale.clientName) {
+            doc.text(`Client: ${sale.clientName}`, 5, y);
+            y += 4;
+          }
           doc.text(`Paiement: ${paymentMethodLabels[sale.paymentMethod]}`, 5, y);
           y += 4;
           doc.text('--------------------------------', 40, y, { align: 'center' });
@@ -421,6 +426,9 @@ export default function Sales() {
     doc.text(`Date: ${format(new Date(sale.date), 'dd MMMM yyyy', { locale: fr })}`, 20, 63);
     doc.text(`Vendeur: ${sale.employeeName}`, 120, 56);
     doc.text(`Paiement: ${paymentMethodLabels[sale.paymentMethod]}`, 120, 63);
+    if (sale.clientName) {
+      doc.text(`Client: ${sale.clientName}`, 20, 70);
+    }
 
     // Table
     autoTable(doc, {
@@ -570,6 +578,7 @@ export default function Sales() {
             <TableHeader>
               <TableRow className="bg-secondary/50">
                 <TableHead className="font-semibold">Produits</TableHead>
+                <TableHead className="font-semibold">Client</TableHead>
                 <TableHead className="font-semibold">Vendeur</TableHead>
                 <TableHead className="font-semibold">Date</TableHead>
                 <TableHead className="font-semibold">Paiement</TableHead>
@@ -582,7 +591,7 @@ export default function Sales() {
             <TableBody>
               {filteredSales.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={isAdmin ? 8 : 7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={isAdmin ? 9 : 8} className="text-center py-8 text-muted-foreground">
                     Aucune vente trouvée
                   </TableCell>
                 </TableRow>
@@ -606,6 +615,13 @@ export default function Sales() {
                           </p>
                         </div>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {sale.clientName ? (
+                        <span className="text-sm text-foreground">{sale.clientName}</span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground italic">—</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
