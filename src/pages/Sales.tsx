@@ -94,7 +94,8 @@ export default function Sales() {
     return sales.filter((sale) => {
       const itemNames = sale.items.map(i => i.productName.toLowerCase()).join(' ');
       const matchesSearch = itemNames.includes(searchQuery.toLowerCase()) ||
-        sale.employeeName.toLowerCase().includes(searchQuery.toLowerCase());
+        sale.employeeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (sale.clientName?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
       const matchesDate = filterSalesByDate(sale);
       return matchesSearch && matchesDate;
     });
@@ -808,6 +809,15 @@ export default function Sales() {
                 )}
 
                 {/* Payment Method */}
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Nom du client (optionnel)</Label>
+                  <Input
+                    placeholder="Ex: Jean Dupont"
+                    value={clientName}
+                    onChange={(e) => setClientName(e.target.value)}
+                    className="h-9"
+                  />
+                </div>
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">Mode de paiement</Label>
                   <Select value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}>
