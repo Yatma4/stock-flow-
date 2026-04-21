@@ -130,7 +130,7 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
     if (data.clientName !== undefined) updateData.client_name = data.clientName;
     if (data.notes !== undefined) updateData.notes = data.notes;
     
-    await supabase.from('quotes').update(updateData).eq('id', quoteId);
+    await supabase.from('quotes').update(updateData as never).eq('id', quoteId);
   };
 
   const deleteQuote = async (quoteId: string) => {
