@@ -47,6 +47,7 @@ export interface Sale {
   date: Date;
   employeeId: string;
   employeeName: string;
+  clientName?: string;
   status: 'completed' | 'cancelled';
   cancelReason?: string;
   cancelledAt?: Date;
