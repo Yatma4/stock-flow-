@@ -51,13 +51,19 @@ import { FinancialEntry } from '@/types';
 import { formatCurrency } from '@/lib/currency';
 
 export default function Finances() {
-  const { entries, addEntry } = useFinances();
+  const { entries, addEntry, updateEntry, deleteEntry } = useFinances();
   const { categories } = useCategories();
+  const { currentUser } = useAuth();
+  const isAdmin = currentUser?.role === 'admin';
   const incomeCategories = ['Ventes', 'Services', 'COMMISSION', 'COMMISSION REPARATION', 'CREANCES', 'Autres revenus', ...categories.map(c => c.name)];
   const expenseCategories = ['Achats stock', 'Salaires', 'Loyer', 'Électricité', 'Marketing', 'Transport', 'Fournitures', 'DETTES', 'Autres dépenses'];
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [selectedEntry, setSelectedEntry] = useState<FinancialEntry | null>(null);
+  const [deleteReason, setDeleteReason] = useState('');
   const [formData, setFormData] = useState({
     type: 'income' as 'income' | 'expense',
     category: '',
