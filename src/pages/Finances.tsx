@@ -30,6 +30,8 @@ import {
 } from '@/components/ui/select';
 import { useFinances } from '@/contexts/FinanceContext';
 import { useCategories } from '@/contexts/CategoryContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Plus,
   Search,
@@ -38,6 +40,8 @@ import {
   Wallet,
   ArrowUpCircle,
   ArrowDownCircle,
+  Edit,
+  Trash2,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -47,13 +51,19 @@ import { FinancialEntry } from '@/types';
 import { formatCurrency } from '@/lib/currency';
 
 export default function Finances() {
-  const { entries, addEntry } = useFinances();
+  const { entries, addEntry, updateEntry, deleteEntry } = useFinances();
   const { categories } = useCategories();
+  const { currentUser } = useAuth();
+  const isAdmin = currentUser?.role === 'admin';
   const incomeCategories = ['Ventes', 'Services', 'COMMISSION', 'COMMISSION REPARATION', 'CREANCES', 'Autres revenus', ...categories.map(c => c.name)];
   const expenseCategories = ['Achats stock', 'Salaires', 'Loyer', 'Électricité', 'Marketing', 'Transport', 'Fournitures', 'DETTES', 'Autres dépenses'];
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [selectedEntry, setSelectedEntry] = useState<FinancialEntry | null>(null);
+  const [deleteReason, setDeleteReason] = useState('');
   const [formData, setFormData] = useState({
     type: 'income' as 'income' | 'expense',
     category: '',
@@ -92,7 +102,7 @@ export default function Finances() {
     }
 
     const newEntry: FinancialEntry = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       ...formData,
       date: new Date(),
     };
@@ -100,6 +110,50 @@ export default function Finances() {
     addEntry(newEntry);
     setIsAddOpen(false);
     toast.success(`${formData.type === 'income' ? 'Revenu' : 'Dépense'} ajouté(e) avec succès`);
+  };
+
+  const handleEdit = (entry: FinancialEntry) => {
+    setSelectedEntry(entry);
+    setFormData({
+      type: entry.type,
+      category: entry.category,
+      description: entry.description,
+      amount: entry.amount,
+    });
+    setIsEditOpen(true);
+  };
+
+  const submitEdit = () => {
+    if (!selectedEntry) return;
+    if (!formData.category || !formData.description || formData.amount <= 0) {
+      toast.error('Veuillez remplir tous les champs');
+      return;
+    }
+    updateEntry(selectedEntry.id, {
+      type: formData.type,
+      category: formData.category,
+      description: formData.description,
+      amount: formData.amount,
+    });
+    setIsEditOpen(false);
+    toast.success('Entrée modifiée');
+  };
+
+  const handleDelete = (entry: FinancialEntry) => {
+    setSelectedEntry(entry);
+    setDeleteReason('');
+    setIsDeleteOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (!selectedEntry) return;
+    if (!deleteReason.trim()) {
+      toast.error('Veuillez indiquer un motif de suppression');
+      return;
+    }
+    deleteEntry(selectedEntry.id, deleteReason.trim());
+    setIsDeleteOpen(false);
+    toast.success('Entrée supprimée');
   };
 
   return (
@@ -211,12 +265,13 @@ export default function Finances() {
                 <TableHead className="font-semibold">Description</TableHead>
                 <TableHead className="font-semibold">Date</TableHead>
                 <TableHead className="font-semibold text-right">Montant</TableHead>
+                {isAdmin && <TableHead className="font-semibold text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredEntries.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={isAdmin ? 6 : 5} className="text-center py-8 text-muted-foreground">
                     Aucune entrée financière. Ajoutez votre première entrée !
                   </TableCell>
                 </TableRow>
@@ -265,6 +320,18 @@ export default function Finances() {
                       {formatCurrency(entry.amount)}
                     </span>
                   </TableCell>
+                  {isAdmin && (
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(entry)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(entry)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>
@@ -344,6 +411,90 @@ export default function Finances() {
             <Button variant="gradient" onClick={submitAdd}>
               Ajouter
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modifier l'entrée</DialogTitle>
+            <DialogDescription>Modifier les informations de cette entrée financière.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Type</Label>
+              <Select
+                value={formData.type}
+                onValueChange={(value: 'income' | 'expense') =>
+                  setFormData({ ...formData, type: value, category: '' })
+                }
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="income">Revenu</SelectItem>
+                  <SelectItem value="expense">Dépense</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Catégorie</Label>
+              <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
+                <SelectTrigger><SelectValue placeholder="Sélectionner une catégorie" /></SelectTrigger>
+                <SelectContent>
+                  {(formData.type === 'income' ? incomeCategories : expenseCategories).map((cat) => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Input
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Montant (FCFA)</Label>
+              <Input
+                type="number"
+                min="0"
+                value={formData.amount}
+                onChange={(e) => setFormData({ ...formData, amount: Number(e.target.value) })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditOpen(false)}>Annuler</Button>
+            <Button variant="gradient" onClick={submitEdit}>Enregistrer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Dialog with motif */}
+      <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Supprimer l'entrée</DialogTitle>
+            <DialogDescription>
+              Vous êtes sur le point de supprimer "{selectedEntry?.description}". Veuillez indiquer un motif.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="delete-reason">Motif de suppression *</Label>
+            <Textarea
+              id="delete-reason"
+              placeholder="Ex: Erreur de saisie, doublon..."
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>Annuler</Button>
+            <Button variant="destructive" onClick={confirmDelete}>Supprimer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
