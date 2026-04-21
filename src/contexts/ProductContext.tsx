@@ -79,7 +79,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     if (data.minStock !== undefined) updateData.min_stock = data.minStock;
     if (data.unit !== undefined) updateData.unit = data.unit;
 
-    const { error } = await supabase.from('products').update(updateData).eq('id', productId);
+    const { error } = await supabase.from('products').update(updateData as never).eq('id', productId);
     if (error) console.error('Error updating product:', error);
   };
 

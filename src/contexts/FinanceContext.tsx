@@ -73,7 +73,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     if (data.description !== undefined) updateData.description = data.description;
     if (data.date !== undefined) updateData.date = data.date.toISOString();
     
-    const { error } = await supabase.from('financial_entries').update(updateData).eq('id', entryId);
+    const { error } = await supabase.from('financial_entries').update(updateData as never).eq('id', entryId);
     if (error) console.error('Error updating entry:', error);
   };
 
