@@ -102,7 +102,7 @@ export default function Finances() {
     }
 
     const newEntry: FinancialEntry = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       ...formData,
       date: new Date(),
     };
@@ -110,6 +110,50 @@ export default function Finances() {
     addEntry(newEntry);
     setIsAddOpen(false);
     toast.success(`${formData.type === 'income' ? 'Revenu' : 'Dépense'} ajouté(e) avec succès`);
+  };
+
+  const handleEdit = (entry: FinancialEntry) => {
+    setSelectedEntry(entry);
+    setFormData({
+      type: entry.type,
+      category: entry.category,
+      description: entry.description,
+      amount: entry.amount,
+    });
+    setIsEditOpen(true);
+  };
+
+  const submitEdit = () => {
+    if (!selectedEntry) return;
+    if (!formData.category || !formData.description || formData.amount <= 0) {
+      toast.error('Veuillez remplir tous les champs');
+      return;
+    }
+    updateEntry(selectedEntry.id, {
+      type: formData.type,
+      category: formData.category,
+      description: formData.description,
+      amount: formData.amount,
+    });
+    setIsEditOpen(false);
+    toast.success('Entrée modifiée');
+  };
+
+  const handleDelete = (entry: FinancialEntry) => {
+    setSelectedEntry(entry);
+    setDeleteReason('');
+    setIsDeleteOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (!selectedEntry) return;
+    if (!deleteReason.trim()) {
+      toast.error('Veuillez indiquer un motif de suppression');
+      return;
+    }
+    deleteEntry(selectedEntry.id, deleteReason.trim());
+    setIsDeleteOpen(false);
+    toast.success('Entrée supprimée');
   };
 
   return (
