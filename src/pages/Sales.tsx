@@ -964,6 +964,41 @@ export default function Sales() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Client Name Dialog */}
+      <Dialog open={isEditClientOpen} onOpenChange={setIsEditClientOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Modifier le nom du client</DialogTitle>
+            <DialogDescription>Mettez à jour le nom du client associé à cette vente. Il apparaîtra sur la facture PDF.</DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label>Nom du client</Label>
+            <Input
+              value={editClientName}
+              onChange={(e) => setEditClientName(e.target.value)}
+              placeholder="Ex: Jean Dupont"
+              className="mt-2"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditClientOpen(false)}>Annuler</Button>
+            <Button
+              variant="gradient"
+              onClick={() => {
+                if (saleToEdit) {
+                  updateSaleClientName(saleToEdit.id, editClientName);
+                  toast.success('Nom du client mis à jour');
+                }
+                setIsEditClientOpen(false);
+                setSaleToEdit(null);
+              }}
+            >
+              Enregistrer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }
