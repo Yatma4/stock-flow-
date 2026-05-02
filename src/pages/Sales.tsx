@@ -18,7 +18,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useSales } from '@/contexts/SalesContext';
 import { useProducts } from '@/contexts/ProductContext';
-import { Plus, Search, Calendar, TrendingUp, ShoppingCart, DollarSign, XCircle, User, CalendarDays, Filter, Trash2, FileText, Printer, X } from 'lucide-react';
+import { Plus, Search, Calendar, TrendingUp, ShoppingCart, DollarSign, XCircle, User, CalendarDays, Filter, Trash2, FileText, Printer, X, Pencil } from 'lucide-react';
 import { format, isToday, isYesterday, subDays, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -43,7 +43,7 @@ interface CartItem {
 }
 
 export default function Sales() {
-  const { sales, addSale, cancelSale, deleteCancelledSale } = useSales();
+  const { sales, addSale, cancelSale, deleteCancelledSale, updateSaleClientName } = useSales();
   const { products, updateStock } = useProducts();
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'yesterday' | 'week' | 'custom'>('all');
@@ -53,6 +53,9 @@ export default function Sales() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [receiptSale, setReceiptSale] = useState<Sale | null>(null);
+  const [isEditClientOpen, setIsEditClientOpen] = useState(false);
+  const [saleToEdit, setSaleToEdit] = useState<Sale | null>(null);
+  const [editClientName, setEditClientName] = useState('');
   const [cancelReason, setCancelReason] = useState('');
   const [saleToCancel, setSaleToCancel] = useState<Sale | null>(null);
   const [saleToDelete, setSaleToDelete] = useState<Sale | null>(null);
@@ -674,6 +677,9 @@ export default function Sales() {
                             </Button>
                             <Button variant="ghost" size="sm" onClick={() => generateInvoicePDF(sale)} title="Facture">
                               <FileText className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" title="Modifier le client" onClick={() => { setSaleToEdit(sale); setEditClientName(sale.clientName || ''); setIsEditClientOpen(true); }}>
+                              <Pencil className="h-4 w-4" />
                             </Button>
                             <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleCancel(sale)}>
                               <XCircle className="h-4 w-4" />
