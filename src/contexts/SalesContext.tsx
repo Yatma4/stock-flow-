@@ -9,6 +9,7 @@ interface SalesContextType {
   cancelSale: (saleId: string, reason: string, cancelledBy: string) => void;
   deleteCancelledSale: (saleId: string) => void;
   deleteCancelledSales: () => void;
+  updateSaleClientName: (saleId: string, clientName: string) => void;
   loading: boolean;
 }
 
@@ -166,6 +167,13 @@ export function SalesProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateSaleClientName = async (saleId: string, clientName: string) => {
+    const trimmed = clientName.trim();
+    setSales(prev => prev.map(s => s.id === saleId ? { ...s, clientName: trimmed || undefined } : s));
+    const { error } = await supabase.from('sales').update({ client_name: trimmed || null }).eq('id', saleId);
+    if (error) console.error('Error updating sale client name:', error);
+  };
+
   return (
     <SalesContext.Provider value={{
       sales,
@@ -173,6 +181,7 @@ export function SalesProvider({ children }: { children: ReactNode }) {
       cancelSale,
       deleteCancelledSale,
       deleteCancelledSales,
+      updateSaleClientName,
       loading,
     }}>
       {children}
