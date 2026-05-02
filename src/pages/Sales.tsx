@@ -18,7 +18,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useSales } from '@/contexts/SalesContext';
 import { useProducts } from '@/contexts/ProductContext';
-import { Plus, Search, Calendar, TrendingUp, ShoppingCart, DollarSign, XCircle, User, CalendarDays, Filter, Trash2, FileText, Printer, X } from 'lucide-react';
+import { Plus, Search, Calendar, TrendingUp, ShoppingCart, DollarSign, XCircle, User, CalendarDays, Filter, Trash2, FileText, Printer, X, Pencil } from 'lucide-react';
 import { format, isToday, isYesterday, subDays, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -43,7 +43,7 @@ interface CartItem {
 }
 
 export default function Sales() {
-  const { sales, addSale, cancelSale, deleteCancelledSale } = useSales();
+  const { sales, addSale, cancelSale, deleteCancelledSale, updateSaleClientName } = useSales();
   const { products, updateStock } = useProducts();
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'yesterday' | 'week' | 'custom'>('all');
@@ -53,6 +53,9 @@ export default function Sales() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [receiptSale, setReceiptSale] = useState<Sale | null>(null);
+  const [isEditClientOpen, setIsEditClientOpen] = useState(false);
+  const [saleToEdit, setSaleToEdit] = useState<Sale | null>(null);
+  const [editClientName, setEditClientName] = useState('');
   const [cancelReason, setCancelReason] = useState('');
   const [saleToCancel, setSaleToCancel] = useState<Sale | null>(null);
   const [saleToDelete, setSaleToDelete] = useState<Sale | null>(null);
@@ -675,6 +678,9 @@ export default function Sales() {
                             <Button variant="ghost" size="sm" onClick={() => generateInvoicePDF(sale)} title="Facture">
                               <FileText className="h-4 w-4" />
                             </Button>
+                            <Button variant="ghost" size="sm" title="Modifier le client" onClick={() => { setSaleToEdit(sale); setEditClientName(sale.clientName || ''); setIsEditClientOpen(true); }}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
                             <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleCancel(sale)}>
                               <XCircle className="h-4 w-4" />
                             </Button>
@@ -954,6 +960,41 @@ export default function Sales() {
             <Button variant="destructive" onClick={confirmDeleteCancelledSale}>
               <Trash2 className="h-4 w-4 mr-1" />
               Supprimer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Client Name Dialog */}
+      <Dialog open={isEditClientOpen} onOpenChange={setIsEditClientOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Modifier le nom du client</DialogTitle>
+            <DialogDescription>Mettez à jour le nom du client associé à cette vente. Il apparaîtra sur la facture PDF.</DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label>Nom du client</Label>
+            <Input
+              value={editClientName}
+              onChange={(e) => setEditClientName(e.target.value)}
+              placeholder="Ex: Jean Dupont"
+              className="mt-2"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditClientOpen(false)}>Annuler</Button>
+            <Button
+              variant="gradient"
+              onClick={() => {
+                if (saleToEdit) {
+                  updateSaleClientName(saleToEdit.id, editClientName);
+                  toast.success('Nom du client mis à jour');
+                }
+                setIsEditClientOpen(false);
+                setSaleToEdit(null);
+              }}
+            >
+              Enregistrer
             </Button>
           </DialogFooter>
         </DialogContent>
