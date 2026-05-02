@@ -46,6 +46,7 @@ export default function Sales() {
   const { sales, addSale, cancelSale, deleteCancelledSale, updateSaleClientName } = useSales();
   const { products, updateStock } = useProducts();
   const [searchQuery, setSearchQuery] = useState('');
+  const [clientQuery, setClientQuery] = useState('');
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'yesterday' | 'week' | 'custom'>('all');
   const [customDate, setCustomDate] = useState<Date | undefined>(undefined);
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -99,10 +100,12 @@ export default function Sales() {
       const matchesSearch = itemNames.includes(searchQuery.toLowerCase()) ||
         sale.employeeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (sale.clientName?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
+      const cq = clientQuery.trim().toLowerCase();
+      const matchesClient = !cq || (sale.clientName?.toLowerCase().includes(cq) ?? false);
       const matchesDate = filterSalesByDate(sale);
-      return matchesSearch && matchesDate;
+      return matchesSearch && matchesClient && matchesDate;
     });
-  }, [sales, searchQuery, dateFilter, customDate]);
+  }, [sales, searchQuery, clientQuery, dateFilter, customDate]);
 
   const filteredCompletedSales = filteredSales.filter(s => s.status === 'completed');
   const totalSales = filteredCompletedSales.reduce((sum, s) => sum + s.totalAmount, 0);
