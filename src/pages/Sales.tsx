@@ -46,6 +46,7 @@ export default function Sales() {
   const { sales, addSale, cancelSale, deleteCancelledSale, updateSaleClientName } = useSales();
   const { products, updateStock } = useProducts();
   const [searchQuery, setSearchQuery] = useState('');
+  const [clientQuery, setClientQuery] = useState('');
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'yesterday' | 'week' | 'custom'>('all');
   const [customDate, setCustomDate] = useState<Date | undefined>(undefined);
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -99,10 +100,12 @@ export default function Sales() {
       const matchesSearch = itemNames.includes(searchQuery.toLowerCase()) ||
         sale.employeeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (sale.clientName?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
+      const cq = clientQuery.trim().toLowerCase();
+      const matchesClient = !cq || (sale.clientName?.toLowerCase().includes(cq) ?? false);
       const matchesDate = filterSalesByDate(sale);
-      return matchesSearch && matchesDate;
+      return matchesSearch && matchesClient && matchesDate;
     });
-  }, [sales, searchQuery, dateFilter, customDate]);
+  }, [sales, searchQuery, clientQuery, dateFilter, customDate]);
 
   const filteredCompletedSales = filteredSales.filter(s => s.status === 'completed');
   const totalSales = filteredCompletedSales.reduce((sum, s) => sum + s.totalAmount, 0);
@@ -560,14 +563,35 @@ export default function Sales() {
 
         {/* Actions Bar */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Rechercher une vente..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-            />
+          <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher (produit, vendeur, client)..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <div className="relative flex-1 max-w-xs">
+              <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Filtrer par client..."
+                value={clientQuery}
+                onChange={(e) => setClientQuery(e.target.value)}
+                className="pl-9 pr-9"
+              />
+              {clientQuery && (
+                <button
+                  type="button"
+                  onClick={() => setClientQuery('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label="Effacer le filtre client"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </div>
           <Button variant="gradient" onClick={handleAdd}>
             <Plus className="mr-2 h-4 w-4" />
